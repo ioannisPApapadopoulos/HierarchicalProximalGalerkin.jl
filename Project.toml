@@ -1,0 +1,4 @@
+name = "HierarchicalProximalGalerkin"
+uuid = "b1240502-fd0f-4161-ac1d-780b5e618c60"
+authors = ["john.papad "]
+version = "0.0.1"
