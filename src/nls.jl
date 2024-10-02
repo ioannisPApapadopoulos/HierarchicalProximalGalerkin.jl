@@ -2,17 +2,18 @@
 ## Proximal Galerkin solver
 #######
 function pg_hierarchical_solve(PG::Union{<:ObstacleProblem2D{T},BCsObstacleProblem2D{T},ObstacleProblem{T},AdaptiveObstacleProblem{T}}, αs::AbstractVector{T}; 
-        initial_guess=(), its_max::Integer=10, 
+        initial_guess=(), its_max::Integer=10, pf_its_max::Integer=2,
         backtracking::Bool=true, matrixfree::Bool=false, 
         return_w::Bool=false, show_trace::Bool=true, 
-        β::T=1e-8, gmres_baseline_tol::T=1e-4) where T
+        β::T=1e-8, gmres_baseline_tol::T=1e-4,c_1::T=1e-4) where T
 
-    nu, npsi = ( (PG.p+1) * PG.Nh - 1)^2, (PG.p * PG.Nh)^2 
+    # nu, npsi = ( (PG.p+1) * PG.Nh - 1)^2, (PG.p * PG.Nh)^2
+    nu, npsi = size(PG.A,1), size(PG.B,2)
     u, ψ = initial_guess == () ? (zeros(nu), zeros(npsi)) : initial_guess
     w = zeros(npsi)
     gmres_iters = 0
     newton_iters = 0
-    ls = BackTracking()
+    ls = BackTracking(c_1=c_1)
     # tics = [0.0;0.0;0.0]
     n_nls = 0
     for α in αs 
@@ -20,13 +21,14 @@ function pg_hierarchical_solve(PG::Union{<:ObstacleProblem2D{T},BCsObstacleProbl
         show_trace && print("Considering α=$α.\n")
         # TOL = α == αs[end] ? 1e-8 : min(1e-5, 1e-1 * 1/α)
         TOL = 1e-3*α
+        # TOL = min(1e-5, 1e-1 * 1/α)
         ls_α = 1.0
 
         res_u, res_ψ = matrixfree_residual(PG, u, ψ, w, α)
         normres = norm([res_u;res_ψ])   
         show_trace && print("Iteration 0, residual norm: $normres.\n")
 
-        its_max = α == αs[1] ? its_max : 2
+        its_max = α == αs[1] ? its_max : pf_its_max
         for iter in 1:its_max
             # res_u, res_ψ = residual(PG, u, ψ, w, α)
             if normres < TOL

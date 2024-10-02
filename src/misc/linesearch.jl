@@ -6,7 +6,7 @@ end
 function ls_fdϕ(PG::ObstacleProblem{T}, u::AbstractVector{T}, ψ::AbstractVector{T}, w::AbstractVector{T}, α::T, du::AbstractVector{T}, dψ::AbstractVector{T}, ls_α::T) where T
     res_u, res_ψ = matrixfree_residual(PG, u+ls_α*du, ψ+ls_α*dψ, w, α)
     A, B = PG.A, PG.B
-    dot([res_u;res_ψ], [α*A*du + B*dψ;-B'*du + apply_D_alias(PG,dψ,ψ)]) / LinearAlgebra.norm([res_u;res_ψ])
+    dot([res_u;res_ψ], [α*A*du + B*dψ;-B'*du + apply_D(PG,dψ,ψ)]) / LinearAlgebra.norm([res_u;res_ψ])
 end
 
 function ls_fdϕ(PG::Union{<:ObstacleProblem2D{T},<:BCsObstacleProblem2D{T}}, u::AbstractVector{T}, ψ::AbstractVector{T}, w::AbstractVector{T}, α::T, du::AbstractVector{T}, dψ::AbstractVector{T}, ls_α::T) where T

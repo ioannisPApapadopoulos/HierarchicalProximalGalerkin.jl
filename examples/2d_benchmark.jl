@@ -1,5 +1,5 @@
 using HierarchicalProximalGalerkin
-using IterativeSolvers, LinearAlgebra, SparseArrays
+using SparseArrays
 using Plots, LaTeXStrings
 using BlockArrays
 
@@ -42,7 +42,7 @@ ndofs_h = Int64[]
 l2s_h, h1s_h = T[], T[]
 global r = range(-1.5,1.5,11)
 global p = 1
-for iter in 1:4
+for iter in 1:1 # 4
 
     print("Considering mesh refinement $iter.\n")
     PG = BCsObstacleProblem2D(r, p, f, φ, ue);

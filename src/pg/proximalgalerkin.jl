@@ -1,6 +1,6 @@
 struct ObstacleProblem{T}
     A::AbstractMatrix{T}
-    rchol_A::MatrixFactorizations.ReverseCholesky{T}
+    chol_A#::MatrixFactorizations.ReverseCholesky{T}
     p::Integer
     Nh::Integer
     B::AbstractMatrix{T}
@@ -28,14 +28,20 @@ function ObstacleProblem(r::AbstractVector{T}, p::Integer, f::AbstractVector{T},
 
     Δ = weaklaplacian(Dp)
     A = (Symmetric(-parent(Δ)[KR,KR]))
-
-    if compute_rchol == true
-        rchol_A = MatrixFactorizations.reversecholesky(A)
-    else
-        rchol_A = MatrixFactorizations.reversecholesky([1.0 0.0;0.0 1.0])
-    end
-
     A = sparse(A)
+    # if compute_rchol == true
+    #     rchol_A = MatrixFactorizations.reversecholesky(A)
+    # else
+    #     rchol_A = MatrixFactorizations.reversecholesky([1.0 0.0;0.0 1.0])
+    # end
+
+    
+    if compute_rchol == true
+        rchol_A = MatrixFactorizations.cholesky(A)
+    else
+        rchol_A = MatrixFactorizations.cholesky([1.0 0.0;0.0 1.0])
+    end
+    
     Bb = (Dp' * P)[Block.(1:p+1), Block.(1:p)]
     B = ExtendableSparseMatrix(size(Bb)...)
     B .= Bb

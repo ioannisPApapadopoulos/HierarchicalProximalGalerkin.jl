@@ -39,7 +39,7 @@ its2 = []
 alg_its = []
 tics = []
 # for p in 1:6:19
-for p in 20:20
+for p in 15:15
     n = length(r)-1
     TF = Thermoforming2D(Vector(r), p, p, k, Φ₀, ϕ, g, dg);
 
@@ -64,7 +64,7 @@ for p in 20:20
         # push!(ob_its, iters)
 
         # print("\n\n")
-        global T, its = HierarchicalObstacles.solve(TF, u_, T0=T, show_trace=false,matrixfree=true)
+        global T, its = HierarchicalProximalGalerkin.solve(TF, u_, T0=T, show_trace=false,matrixfree=true)
         Phi_its = Phi_its .+ its
         # push!(Phi_its, its)
         h1 = normH1(PG, u-u_); push!(h1s, h1)
@@ -84,32 +84,32 @@ for p in 20:20
 end
 
 
-# Dp = DirichletPolynomial(r)
-# xx = range(0,1,500)
-# Ux = evaluate2D(u, xx, xx, 20, Dp)
-# # norm(U[findall(U .> 1.0)] .- 1.0, Inf)
-# Plots.gr_cbar_offsets[] = (-0.05,-0.01)
-# Plots.gr_cbar_width[] = 0.03
-# surface(xx,xx,Ux,
-#     color=:redsblues, #:vik,
-#     xlabel=L"x", ylabel=L"y", zlabel=L"u(x,y)",
-#     # camera=(30,-30),
-#     title="Membrane  "*L"u",
-#     margin=(-6, :mm),
-#     # zlim=[0,1.3],
-# )
-# Plots.savefig("thermoforming-membrane.pdf")
+Dp = DirichletPolynomial(r)
+xx = range(0,1,500)
+Ux = evaluate2D(u, xx, xx, 16, Dp)
+# norm(U[findall(U .> 1.0)] .- 1.0, Inf)
+Plots.gr_cbar_offsets[] = (-0.05,-0.01)
+Plots.gr_cbar_width[] = 0.03
+surface(xx,xx,Ux,
+    color=:redsblues, #:vik,
+    xlabel=L"x", ylabel=L"y", zlabel=L"u(x,y)",
+    # camera=(30,-30),
+    title="Membrane  "*L"u",
+    margin=(-6, :mm),
+    # zlim=[0,1.3],
+)
+Plots.savefig("thermoforming-membrane.pdf")
 
-# ob(x,y) = obstacle(x,y,T,Φ₀,ϕ,C)
-# surface(xx,xx,ob.(xx',xx),
-#     color=:redsblues, #:vik,
-#     xlabel=L"x", ylabel=L"y", zlabel=L"(\Phi_0 + \phi T)(x,y)",
-#     # camera=(30,-30),
-#     title="Mould  "*L"\Phi_0 + \phi T",
-#     margin=(-6, :mm),
-#     # zlim=[0,1.3],
-# )
-# Plots.savefig("thermoforming-mould.pdf")
+ob(x,y) = obstacle(x,y,15,T,Φ₀,ϕ,C)
+surface(xx,xx,ob.(xx',xx),
+    color=:redsblues, #:vik,
+    xlabel=L"x", ylabel=L"y", zlabel=L"(\Phi_0 + \gamma T)(x,y)",
+    # camera=(30,-30),
+    title="Mould  "*L"\Phi_0 + \gamma T",
+    margin=(-6, :mm),
+    # zlim=[0,1.3],
+)
+Plots.savefig("thermoforming-mould.pdf")
 
 # y = 0.5
 # xx = range(0,1,500)
