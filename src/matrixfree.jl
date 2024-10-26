@@ -55,6 +55,16 @@ function apply_D_adaptive(PG::AdaptiveObstacleProblem{T}, u::AbstractVector{T}, 
     M * cellwise_interlace(PG, ψs)
 end
 
+function apply_D(PG::GradientBounds2D{T}, u::AbstractVector{T}, ψ::AbstractVector{T}) where T
+    M, plan_P = PG.M, PG.plan_P
+    nx, px, ny, py = size(plan_P)
+
+    ψx = plan_P \ BlockMatrix(reshape(ψ, nx*px, ny*py), repeat([px], nx), repeat([py], ny))
+    ux = plan_P \ BlockMatrix(reshape(u, nx*px, ny*py), repeat([px], nx), repeat([py], ny))
+
+    vals = (PG.φx ./ (sqrt.(one(T) .+ ψx.^2)).^3) .* ux
+    Vector(M * (plan_P * vals)[:])
+end
 
 ## For evaluating the residual
 function evaluate_D(PG::ObstacleProblem{T}, ψ::AbstractVector{T}) where T
@@ -95,6 +105,14 @@ function evaluate_D(PG::Union{<:ObstacleProblem2D{T},<:BCsObstacleProblem2D{T}},
     M * (plan_P * vals)[:]
 end
 
+function evaluate_D(PG::GradientBounds2D{T}, ψ::AbstractVector{T}) where T
+    M, plan_P = PG.M, PG.plan_P
+    nx, px, ny, py = size(plan_P)
+    ψx = plan_P \ BlockMatrix(reshape(ψ, nx*px, ny*py), repeat([px], nx), repeat([py], ny))
+    vals = (ψx .* PG.φx ./ (sqrt.(one(T) .+ ψx.^2)))
+    M * (plan_P * vals)[:]
+end
+
 """
 Evaluate the residual at a coefficient vector [𝐮;ψ]
 """
@@ -116,4 +134,14 @@ function matrixfree_residual(PG::BCsObstacleProblem2D{T}, u::AbstractVector{T}, 
     x = α*A*u + B*(ψ - α*f - w)
     y = -B'*u - evaluate_D(PG, ψ) + M*φ
     (Vector(x+α*bcs_Fx), Vector(y+bcs_Fy))
+end
+
+function matrixfree_residual(PG::GradientBounds2D, 
+                u::AbstractVector{T}, ψ::AbstractVector{T}, w::AbstractVector{T}, α::Number) where T
+    A, B, G = PG.A, PG.B, PG.G
+    f= PG.f
+
+    x = α*A*u + B*(ψ - w) - α*G*f
+    y = -B'*u + evaluate_D(PG, ψ)
+    (Vector(x), Vector(y))
 end

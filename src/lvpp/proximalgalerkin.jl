@@ -51,7 +51,8 @@ function ObstacleProblem(r::AbstractVector{T}, p::Integer, f::AbstractVector{T},
 
     M = Diagonal((P' * P)[Block.(1:p), Block.(1:p)])
 
-    E = sparse(B'*(Diagonal(A)\B))
+    # E = sparse(B'*(Diagonal(A)\B))
+    E = preconditioner_E_1D(r, p, Nh)
 
 
     plan_P = plan_piecewise_legendre_transform(r, (Block(p),), 1)
@@ -87,6 +88,33 @@ function cache_quadrature(Nh::Int, p::Int, nb::Int, G::PiecewiseOrthogonalPolyno
     K2 = colM[:]
 
     G \ X, K1, K2
+end
+
+function preconditioner_E_1D(r::AbstractVector{T}, p::Integer, Nh::Integer) where T
+    
+    s = r[2:end]-r[1:end-1]
+    cs = 2 ./ s
+
+    Pl = Legendre{T}()
+    Ap = sparse(view(diff(Pl)' * diff(Pl), 1:p+2,1:p+2))
+    AL = Ap[1:p,1:p] + Ap[3:p+2,3:p+2] - Ap[1:p,3:p+2] - Ap[3:p+2,1:p]
+    Mp = sparse(view(Pl'*Pl, 1:p+2,1:p+2))
+    ML = Mp[1:p,1:p] + Mp[3:p+2,3:p+2] - Mp[1:p,3:p+2]- Mp[3:p+2,1:p]
+    ML3 = Mp[1:p,1:p] - Mp[1:p,3:p+2] 
+
+    ALb = ExtendableSparseMatrix(p*Nh,p*Nh)
+    MLb = ExtendableSparseMatrix(p*Nh,p*Nh)
+    ML3b = ExtendableSparseMatrix(p*Nh,p*Nh)
+    for i in axes(AL,1), j in axes(AL,2)
+        for k in 0:Nh-1
+            ALb[Nh*i-k,Nh*j-k] = cs[k+1] * AL[i,j]
+            MLb[Nh*i-k,Nh*j-k] = ML[i,j] / cs[k+1]
+            ML3b[Nh*i-k,Nh*j-k] = ML3[i,j] / cs[k+1]
+        end
+    end
+
+    chol_ALb = MatrixFactorizations.cholesky(ALb)
+    sparse(ML3b * ldiv!(chol_ALb, Matrix(ML3b)'))
 end
 
 function ObstacleProblem(r::AbstractVector{T}, p::Integer, f::Function, φ::Function;compute_rchol=true) where T

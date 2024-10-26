@@ -27,6 +27,7 @@ function dg(s)
     end
 end
 
+
 function obstacle(x,y,p,T,Φ₀,ϕ,C)
     rT = reshape(T,isqrt(lastindex(T)), isqrt(lastindex(T)))
     Φ₀(x,y) + ϕ(x,y)*(C[y,Block.(1:p+1)]' * rT * C[x,Block.(1:p+1)])
@@ -91,7 +92,7 @@ Ux = evaluate2D(u, xx, xx, 16, Dp)
 Plots.gr_cbar_offsets[] = (-0.05,-0.01)
 Plots.gr_cbar_width[] = 0.03
 surface(xx,xx,Ux,
-    color=:redsblues, #:vik,
+    color=:diverging, #:vik,
     xlabel=L"x", ylabel=L"y", zlabel=L"u(x,y)",
     # camera=(30,-30),
     title="Membrane  "*L"u",
@@ -102,11 +103,13 @@ Plots.savefig("thermoforming-membrane.pdf")
 
 ob(x,y) = obstacle(x,y,15,T,Φ₀,ϕ,C)
 surface(xx,xx,ob.(xx',xx),
-    color=:redsblues, #:vik,
-    xlabel=L"x", ylabel=L"y", zlabel=L"(\Phi_0 + \gamma T)(x,y)",
+    color=:diverging, #:vik,
+    xlabel=L"x", ylabel=L"y", zlabel=L"(\Phi_0 + \xi T)(x,y)",
     # camera=(30,-30),
-    title="Mould  "*L"\Phi_0 + \gamma T",
+    title="Mould  "*L"\Phi_0 + \xi T",
     margin=(-6, :mm),
+    # right_margin=3Plots.mm
+    # extra_kwargs=Dict(:subplot=>Dict("3d_colorbar_axis" => [0.1, 0.1, 0.1, 0.1]) )
     # zlim=[0,1.3],
 )
 Plots.savefig("thermoforming-mould.pdf")

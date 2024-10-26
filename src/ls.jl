@@ -1,4 +1,4 @@
-function assembly_solve(PG::Union{<:ObstacleProblem{T}, <:AdaptiveObstacleProblem{T}, <:ObstacleProblem2D{T}, <:BCsObstacleProblem2D{T}}, 
+function assembly_solve(PG::Union{<:ObstacleProblem{T}, <:AdaptiveObstacleProblem{T}, <:ObstacleProblem2D{T}, <:BCsObstacleProblem2D{T}, GradientBounds2D{T}}, 
         u::AbstractVector{T}, v::AbstractVector{T}, ψ::AbstractVector{T}, α::Number;β::Number=1e-10) where T
     A, B = PG.A, PG.B
     M = PG.M

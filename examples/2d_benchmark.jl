@@ -1,5 +1,5 @@
 using HierarchicalProximalGalerkin
-using SparseArrays
+using SparseArrays, LinearAlgebra
 using Plots, LaTeXStrings
 using BlockArrays
 
@@ -16,7 +16,7 @@ f(x,y) = 2.0
 φ(x,y) = 1.0
 
 function compute_errors(PG::BCsObstacleProblem2D{T}, uc::Vector{T}, p::Int64) where T
-    bf_p=p+2;
+    bf_p=p+10;
     (xg,yg), plan_C = plan_grid_transform(PG.C, Block(PG.p+bf_p,PG.p+bf_p));
     uec = (plan_C * (ue.(xg,reshape(yg,1,1,size(yg)...))))[:]
     KR = Block.(oneto(PG.p+bf_p))
@@ -36,71 +36,94 @@ function compute_errors(PG::BCsObstacleProblem2D{T}, uc::Vector{T}, p::Int64) wh
 end
 
 T = Float64
-gmres_its_h, newton_its_h, tics_h = Int32[], Int32[], T[]
-rs_h = Vector{T}[]
-ndofs_h = Int64[]
-l2s_h, h1s_h = T[], T[]
-global r = range(-1.5,1.5,11)
-global p = 1
-for iter in 1:1 # 4
 
-    print("Considering mesh refinement $iter.\n")
-    PG = BCsObstacleProblem2D(r, p, f, φ, ue);
+function benchmark_solve(r::AbstractVector{T}, p::Union{<:Int, Vector{<:Int}}, refinement_strategy::Function; nlevels::Int=6) where T
+    gmres_its, newton_its, tics = Int32[], Int32[], T[]
+    rs, ps = Vector{T}[], eltype(p)[]
+    ndofs = Int64[]
+    l2s, h1s = T[], T[]
+    PG, u, ψ, w = [], [], [], []
+    for iter in 1:nlevels
 
-    push!(ndofs_h, lastindex(PG.A,1))
-    push!(rs_h, r)
-    
-    αs = [1e-1, 1e0, 1e1, 1e2, 1e3, 1e3, 1e3]
-    tic = @elapsed uc, ψ, w, iters = pg_hierarchical_solve(PG, αs,
-        matrixfree=true,backtracking=true,its_max=30, return_w=true,show_trace=true)
+        print("Considering mesh refinement $iter.\n")
+        PG = BCsObstacleProblem2D(r, p, f, φ, ue);
+        Md = sparse(grammatrix(PG.Dp)[Block.(oneto(p+1)), Block.(oneto(p+1))])
+        Md = kron(Md, Md)
+
+        push!(ndofs, lastindex(PG.A,1))
+        push!(rs, r)
+        push!(ps, p)
+        
+        αs = [1e-1, 1e0, 1e1, 1e2, 1e3, 1e3, 1e3]
+        tic = @elapsed u, ψ, w, iters = pg_hierarchical_solve(PG, αs,
+            matrixfree=true,backtracking=true,its_max=30,pf_its_max=5,return_w=true,show_trace=true, c_1=-1e4, Md=Md)
 
 
-    push!(tics_h, tic)
-    push!(gmres_its_h, iters[2])
-    push!(newton_its_h, iters[1])
+        push!(tics, tic)
+        push!(gmres_its, iters[2])
+        push!(newton_its, iters[1])
 
-    l2, h1 = compute_errors(PG, uc, p)
-    push!(l2s_h, l2)
-    push!(h1s_h, h1)
+        l2, h1 = compute_errors(PG, u, p)
+        push!(l2s, l2)
+        push!(h1s, h1)
 
-    # MA = MeshAdaptivity2D(PG, 1e3, uc, ψ, w, f, φ, bcs=ue);
-    # ϵs = error_estimates(MA)
-    # global r = h_refine(MA,ϵs,δ=0.01)
-    global r = uniform_refine(r)
+        MA = MeshAdaptivity2D(PG, αs[end], u, ψ, w, f, φ, bcs=ue);
+        r, p = refinement_strategy(r, p, MA)
 
+    end
+    return (l2s, h1s), ndofs, (newton_its,gmres_its), rs, ps, tics, (PG, u, ψ, w)
 end
 
 
-gmres_its_p, newton_its_p, tics_p = Int32[], Int32[], T[]
-rs_p = Vector{T}[]
-ndofs_p = Int64[]
-l2s_p, h1s_p = T[], T[]
-r = range(-1.5,1.5,11)
-for p in 2:8
-    PG = BCsObstacleProblem2D(r, p, f, φ, ue);
-    push!(ndofs_p, lastindex(PG.A,1))
-    push!(rs_p, r)
-    
-    αs = [1e-2, 1e-1, 1e0, 1e1, 1e2, 1e3, 1e3, 1e3]
-    tic = @elapsed uc, ψ, w, iters = pg_hierarchical_solve(PG, αs, β=1e-8,
-        matrixfree=true,backtracking=true,its_max=30, return_w=true,show_trace=false)
-
-    push!(tics_p, tic)
-    push!(gmres_its_p, iters[2])
-    push!(newton_its_p, iters[1])
-
-    l2, h1 = compute_errors(PG, uc, p)
-    push!(l2s_p, l2)
-    push!(h1s_p, h1)
-
-    # MA = MeshAdaptivity2D(PG, 1e3, uc, ψ, w, f, φ, bcs=ue);
-    # ϵs = error_estimates(MA)
-    # r = h_refine(MA,ϵs,δ=0.01)
-    # r = uniform_refine(r)
-    # p+=1
-
-
+function pg_h_uniform_refine(r::AbstractVector, p::Int, MA)
+    uniform_refine(r), p
 end
+(l2s_u, h1s_u), ndofs, iters, rs, ps, tics, (PG, u, ψ, w) = 
+    benchmark_solve(range(-1.5,1.5,11), 2, pg_h_uniform_refine, nlevels=4)
+Plots.plot(ndofs, h1s_u, marker=:xcross, linewidth=2, xaxis=:log10, yaxis=:log10)
+
+function pg_h_adaptive_refine(r::AbstractVector, p::Int, MA)
+    ϵs = error_estimates(MA)
+    h_refine(MA,ϵs,δ=0.5), p
+end
+(l2s_u, h1s_u), ndofs, iters, rs, ps, tics, (PG, u, ψ, w) = 
+    benchmark_solve(range(-1.5,1.5,11), 1, pg_h_adaptive_refine, nlevels=8)
+Plots.plot!(ndofs, h1s_u, marker=:xcross, linewidth=2, xaxis=:log10, yaxis=:log10)
+Plots.plot(rs[end], ones(length(rs[end])), marker=:dot)
+
+function pg_h_adaptive_p_uniform_refine(r::AbstractVector, p::Int, MA)
+    ϵs = error_estimates(MA)
+    h_refine(MA,ϵs,δ=0.5), p+2
+end
+(l2s_u, h1s_u), ndofs, iters, rs, ps, tics, (PG, u, ψ, w) = 
+    benchmark_solve(range(-1.5,1.5,7), 1, pg_h_adaptive_p_uniform_refine, nlevels=4);
+Plots.plot(ndofs, h1s_u, marker=:xcross, linewidth=2, xaxis=:log10, yaxis=:log10)
+
+function pg_p_uniform_refine(r::AbstractVector, p::Int, MA)
+    r, p+1
+end
+(l2s_u, h1s_u), ndofs, iters, rs, ps, tics, (PG, u, ψ, w) = 
+    benchmark_solve(range(-1.5,1.5,11), 1, pg_p_uniform_refine, nlevels=10)
+Plots.plot!(ndofs, h1s_u, marker=:xcross, linewidth=2, xaxis=:log10, yaxis=:log10)
+
+MA = MeshAdaptivity2D(PG, 1e3, u, ψ, w, f, φ, bcs=ue);
+ϵs = error_estimates(MA)
+xx = (rs[end][1:end-1]+rs[end][2:end]) ./ 2
+contourf(xx,xx,ϵs,
+           color=:diverging,
+           xlabel=L"x",ylabel=L"y", zlabel=L"u(x,y)", aspect_ratio=:equal)
+
+xx = range(-1.5,1.5,101)
+Ux = evaluate2D(u, xx, xx, PG.p+1, PG.C)
+Ua = ue.(xx, xx')
+
+heatmap(xx,xx,abs.(Ux-Ua),
+           color=cgrad(:diverging, scale = :log10),
+           xlabel=L"x",ylabel=L"y", zlabel=L"u(x,y)", aspect_ratio=:equal, 
+           grid=false, xlim=[-1.5,1.5], ylim=[-1.5,1.5])
+vline!(rs[end], color=:black, linewidth=0.8, label="")
+hline!(rs[end], color=:black, linewidth=0.8, label="")
+
 
 p = Plots.plot(ndofs_p, h1s_p, 
     yaxis=:log10, xaxis=:log10,  
@@ -112,12 +135,12 @@ p = Plots.plot(ndofs_p, h1s_p,
 ps = 1:7
 Plots.plot!(ndofs_p, [1^(1.5) ./ ps.^(1.5) * h1s_p[1]], linestyle=:dash, label=L"$O(p^{-3/2}), O(h^3/2)$")
 
-xx = range(-1.5,1.5,100)
+xx = range(-1.5,1.5,101)
 Plots.gr_cbar_offsets[] = (-0.05,-0.01)
 Plots.gr_cbar_width[] = 0.03
 Ux = evaluate2D(uc, xx, xx, p+1, PG.C)
 surface(xx,xx,Ux,
-    color=:redsblues,
+    color=:diverging,
     margin=(-6, :mm),
     topmargin=(1, :mm),
     xlabel=L"x",ylabel=L"y", zlabel=L"u(x,y)")

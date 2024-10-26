@@ -30,12 +30,14 @@ export ContinuousPolynomial, DirichletPolynomial, weaklaplacian, grammatrix, Blo
         HIKSolver, HIKSolver2D, solve, evaluate, hik_gridap_solve,
         Thermoforming2D,
         normH1, normL2, evaluate2D,
-        BCsObstacleProblem2D
+        BCsObstacleProblem2D,
+        GradientBounds2D
 
-include("pg/proximalgalerkin.jl")
-include("pg/proximalgalerkin_2d.jl")
-include("pg/proximalgalerkin_2d_bcs.jl")
-include("pg/proximalgalerkin_adaptive.jl")
+include("lvpp/proximalgalerkin.jl")
+include("lvpp/proximalgalerkin_2d.jl")
+include("lvpp/proximalgalerkin_2d_bcs.jl")
+include("lvpp/proximalgalerkin_adaptive.jl")
+include("lvpp/gradientbounds.jl")
 include("matrixfree.jl")
 include("assembly.jl")
 include("ls.jl")
