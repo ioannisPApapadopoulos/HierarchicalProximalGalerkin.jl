@@ -54,16 +54,24 @@ end
 ## GradientBounds
 
 function assemble_D(PG::GradientBounds2D{T}, ψ::AbstractVector{T}) where T
-    B = PG.B
-    Nh, p = PG.Nh, PG.p
+    plan_dP = PG.plan_dP
     plan_P = PG.plan_P
     nx, px, ny, py = size(plan_P)
+    Nh, p = PG.Nh, PG.p
 
-    ψx = plan_P \ BlockMatrix(reshape(ψ, nx*px, ny*py), repeat([px], nx), repeat([py], ny))
-    vals = (PG.φx ./ (sqrt.(one(T) .+ ψx.^2)).^3) .* PG.Ux
-
-    X = Array{T}(PG.plan_tP * vals)
-
-    da = PG.M * reshape(X, (Nh*p)^2, p^2)
-    sparse(PG.K1, PG.K2, da[:])
+    ψ1, ψ2 = ψ[1:length(ψ)÷2], ψ[length(ψ)÷2+1:end]
+    X = BlockedArray{T}(undef, (BlockedOneTo(Nh:Nh:Nh*p), BlockedOneTo(Nh:Nh:Nh*p), 1:2))
+    X[:,:,1] .= BlockMatrix(reshape(ψ1, nx*px, ny*py), repeat([px], nx), repeat([py], ny))
+    X[:,:,2] .= BlockMatrix(reshape(ψ2, nx*px, ny*py), repeat([px], nx), repeat([py], ny))
+    ψx = plan_dP \ X
+    vals1 = (PG.φx .* (one(T) .+ ψx[:,:,:,:,2].^2) ./ (sqrt.(one(T) .+ ψx[:,:,:,:,1].^2 + ψx[:,:,:,:,2].^2)).^3) .* PG.Ux
+    vals2 = (PG.φx .* (one(T) .+ ψx[:,:,:,:,1].^2) ./ (sqrt.(one(T) .+ ψx[:,:,:,:,1].^2 + ψx[:,:,:,:,2].^2)).^3) .* PG.Ux
+    
+    X = Array{T}(PG.plan_tP * [vals1;;;;;vals2])
+    
+    da1 = PG.M * reshape(X[:,:,1:p^2], (Nh*p)^2, p^2)
+    da2 = PG.M * reshape(X[:,:,p^2+1:end], (Nh*p)^2, p^2)
+    D1 = sparse(PG.K1, PG.K2, da1[:])
+    D2 = sparse(PG.K1, PG.K2, da2[:])
+    blockdiag(D1,D2)
 end

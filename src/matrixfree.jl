@@ -57,13 +57,21 @@ end
 
 function apply_D(PG::GradientBounds2D{T}, u::AbstractVector{T}, ψ::AbstractVector{T}) where T
     M, plan_P = PG.M, PG.plan_P
+    plan_dP = PG.plan_dP
     nx, px, ny, py = size(plan_P)
+    Nh, p = PG.Nh, PG.p
 
-    ψx = plan_P \ BlockMatrix(reshape(ψ, nx*px, ny*py), repeat([px], nx), repeat([py], ny))
     ux = plan_P \ BlockMatrix(reshape(u, nx*px, ny*py), repeat([px], nx), repeat([py], ny))
+    ψ1, ψ2 = ψ[1:length(ψ)÷2], ψ[length(ψ)÷2+1:end]
+    X = BlockedArray{T}(undef, (BlockedOneTo(Nh:Nh:Nh*p), BlockedOneTo(Nh:Nh:Nh*p), 1:2))
+    X[:,:,1] .= BlockMatrix(reshape(ψ1, nx*px, ny*py), repeat([px], nx), repeat([py], ny))
+    X[:,:,2] .= BlockMatrix(reshape(ψ2, nx*px, ny*py), repeat([px], nx), repeat([py], ny))
+    ψx = plan_dP \ X
 
-    vals = (PG.φx ./ (sqrt.(one(T) .+ ψx.^2)).^3) .* ux
-    Vector(M * (plan_P * vals)[:])
+    dx = (PG.φx ./ (sqrt.(one(T) .+ ψx[:,:,:,:,1].^2 + ψx[:,:,:,:,2].^2)).^3) 
+    vals1, vals2 = dx .* ux[1:length(ux)÷2], dx .* ux[length(ux)÷2+1:end]
+    X = plan_dP * [vals1;;;;;vals2]
+    [Vector(M * (X[:,:,1])[:]);Vector(M * (X[:,:,2])[:])]
 end
 
 ## For evaluating the residual
@@ -107,10 +115,21 @@ end
 
 function evaluate_D(PG::GradientBounds2D{T}, ψ::AbstractVector{T}) where T
     M, plan_P = PG.M, PG.plan_P
+    plan_dP = PG.plan_dP
     nx, px, ny, py = size(plan_P)
-    ψx = plan_P \ BlockMatrix(reshape(ψ, nx*px, ny*py), repeat([px], nx), repeat([py], ny))
-    vals = (ψx .* PG.φx ./ (sqrt.(one(T) .+ ψx.^2)))
-    M * (plan_P * vals)[:]
+    Nh, p = PG.Nh, PG.p
+
+    ψ1, ψ2 = ψ[1:length(ψ)÷2], ψ[length(ψ)÷2+1:end]
+    X = BlockedArray{T}(undef, (BlockedOneTo(Nh:Nh:Nh*p), BlockedOneTo(Nh:Nh:Nh*p), 1:2))
+    X[:,:,1] .= BlockMatrix(reshape(ψ1, nx*px, ny*py), repeat([px], nx), repeat([py], ny))
+    X[:,:,2] .= BlockMatrix(reshape(ψ2, nx*px, ny*py), repeat([px], nx), repeat([py], ny))
+    ψx = plan_dP \ X
+
+    vals1 = (ψx[:,:,:,:,1] .* PG.φx ./ (sqrt.(one(T) .+ ψx[:,:,:,:,1].^2 + ψx[:,:,:,:,2].^2)))
+    vals2 = (ψx[:,:,:,:,2] .* PG.φx ./ (sqrt.(one(T) .+ ψx[:,:,:,:,1].^2 + ψx[:,:,:,:,2].^2)))
+    
+    X = plan_dP * [vals1;;;;;vals2]
+    [Vector(M * (X[:,:,1])[:]);Vector(M * (X[:,:,2])[:])]
 end
 
 """
