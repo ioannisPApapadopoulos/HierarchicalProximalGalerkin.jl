@@ -79,7 +79,7 @@ function pg_h_uniform_refine(r::AbstractVector, p::Int, MA)
     uniform_refine(r), p
 end
 (l2s_u, h1s_u), ndofs, iters, rs, ps, tics, (PG, u, ψ, w) = 
-    benchmark_solve(range(-1.5,1.5,11), 2, pg_h_uniform_refine, nlevels=4)
+    benchmark_solve(range(-1.5,1.5,11), 2, pg_h_uniform_refine, nlevels=1)
 Plots.plot(ndofs, h1s_u, marker=:xcross, linewidth=2, xaxis=:log10, yaxis=:log10)
 
 function pg_h_adaptive_refine(r::AbstractVector, p::Int, MA)

@@ -21,7 +21,8 @@ end
 function assembly_solve(PG:: GradientBounds2D{T}, 
     u::AbstractVector{T}, v::AbstractVector{T}, ψ::AbstractVector{T}, α::Number;β::Number=1e-10) where T
     A, B = PG.A, PG.B
-    M = PG.M
+    E = PG.E
+    E = blockdiag(E,E)
 
     if PG.ψ ≠ ψ
         PG.D .= assemble_D(PG,ψ)
@@ -29,7 +30,7 @@ function assembly_solve(PG:: GradientBounds2D{T},
     end
     D = sparse(PG.D)
 
-    X = [α*A B;-B' D+β*blockdiag(M,M)]
+    X = [α*A B;-B' D+β*E]
     luX = MatrixFactorizations.lu(X)
     xy = ldiv!(luX, copy([u;v]))
 
