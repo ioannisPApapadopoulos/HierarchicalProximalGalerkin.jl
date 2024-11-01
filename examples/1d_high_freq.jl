@@ -1,3 +1,4 @@
+using MKL
 using HierarchicalProximalGalerkin, SparseArrays
 using IterativeSolvers, LinearAlgebra
 using Plots, LaTeXStrings
@@ -66,10 +67,11 @@ function high_freq_solve(r::AbstractVector{T}, p::Union{<:Int, Vector{<:Int}}, r
         Md = sparse(grammatrix(Dp)[Block.(1:bb), Block.(1:bb)])
         Ad = sparse(-weaklaplacian(Dp)[Block.(1:bb), Block.(1:bb)]);
 
-        αs = vcat([1e-3*2^i for i = 0:14], repeat([20],7))
+        # αs = vcat([1e-3*2^i for i = 0:14], repeat([20],7))
+        αs = 2.0.^(-7:3)
         tic = @elapsed u, ψ, w, iters = pg_hierarchical_solve(PG, αs;its_max=50, 
-                show_trace=true, pf_its_max=3, #gmres_baseline_tol=1e-10,
-                matrixfree=true,  backtracking=true, return_w=true,c_1=-1e3)
+                show_trace=true, pf_its_max=4, #gmres_baseline_tol=1e-10,
+                matrixfree=false,  backtracking=true, return_w=true,c_1=-1e4)
         # push!(us, u); push!(ψs, ψ); push!(ws, w); push!(λs, (w-ψ)/αs[end])
         
         push!(tics, tic)
@@ -99,8 +101,8 @@ function pg_h_uniform_refine(r::AbstractVector, p::Int, MA)
     uniform_refine(r), p
 end
 (l2s_u, h1s_u), ndofs, iters, rs, ps, tics = 
-    high_freq_solve(range(0,1,11), 3, pg_h_uniform_refine, nlevels=10)
-Plots.plot(ndofs, h1s_u, marker=:xcross, linewidth=2, xaxis=:log10, yaxis=:log10)
+    high_freq_solve(range(0,1,11), 3, pg_h_uniform_refine, nlevels=7)
+Plots.plot!(ndofs, h1s_u, marker=:xcross, linewidth=2, xaxis=:log10, yaxis=:log10)
 
 function pg_h_adaptive_refine(r::AbstractVector, p::Int, MA)
     ϵs = error_estimates(MA, pg=false)
