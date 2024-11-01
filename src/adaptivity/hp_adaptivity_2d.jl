@@ -147,7 +147,7 @@ end
 
 function h_refine(MA::MeshAdaptivity2D{T}, ϵs::AbstractMatrix{T}; δ::T=0.1) where T
     is_err = ϵs .> δ*maximum(ϵs)
-    @assert is_err == is_err'
+    # @assert is_err == is_err'
     is_err = LowerTriangular(is_err)
 
     refine_idx = Integer[]

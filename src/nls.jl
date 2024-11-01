@@ -1,11 +1,12 @@
 #######
 ## Proximal Galerkin solver
 #######
-function pg_hierarchical_solve(PG::Union{<:ObstacleProblem2D{T},BCsObstacleProblem2D{T},ObstacleProblem{T},AdaptiveObstacleProblem{T}}, αs::AbstractVector{T}; 
+function pg_hierarchical_solve(PG::Union{<:ObstacleProblem2D{T},BCsObstacleProblem2D{T},ObstacleProblem{T},AdaptiveObstacleProblem{T}, GradientBounds2D{T}}, 
+        αs::AbstractVector{T}; 
         initial_guess=(), its_max::Integer=10, pf_its_max::Integer=2,
         backtracking::Bool=true, matrixfree::Bool=false, 
         return_w::Bool=false, show_trace::Bool=true, 
-        β::T=1e-8, gmres_baseline_tol::T=1e-4,c_1::T=1e-4) where T
+        β::T=1e-8, gmres_baseline_tol::T=1e-4,c_1::T=1e-4, Md=[],tolerance::T=1e-10) where T
 
     # nu, npsi = ( (PG.p+1) * PG.Nh - 1)^2, (PG.p * PG.Nh)^2
     nu, npsi = size(PG.A,1), size(PG.B,2)
@@ -20,7 +21,8 @@ function pg_hierarchical_solve(PG::Union{<:ObstacleProblem2D{T},BCsObstacleProbl
         n_nls += 1
         show_trace && print("Considering α=$α.\n")
         # TOL = α == αs[end] ? 1e-8 : min(1e-5, 1e-1 * 1/α)
-        TOL = 1e-3*α
+        # TOL = 1e-3*α # as used for theromoforming
+        TOL = tolerance
         # TOL = min(1e-5, 1e-1 * 1/α)
         ls_α = 1.0
 
@@ -50,10 +52,19 @@ function pg_hierarchical_solve(PG::Union{<:ObstacleProblem2D{T},BCsObstacleProbl
                 gmres_iters = 0
             end
             newton_iters += 1
+            u_ = copy(u)
             (u,ψ,ls_α) = backtracking == true ? pg_linesearch(PG,ls,u,ψ,w,α,du,dψ) : (u+du, ψ+dψ, 1.0)
+
             res_u, res_ψ = matrixfree_residual(PG, u, ψ, w, α)
             normres = norm([res_u;res_ψ])    
-            show_trace && print("Iteration $iter, stepsize: $ls_α, residual norm: $normres.\n")
+
+            if !isempty(Md)
+                d = u - u_
+                cauchy_norm = sqrt(d' * (PG.A + Md) * d)
+                show_trace && print("Iteration $iter, stepsize: $ls_α, residual norm: $normres, cauchy norm: $cauchy_norm.\n")
+            else
+                show_trace && print("Iteration $iter, stepsize: $ls_α, residual norm: $normres.\n")
+            end
         end
         if n_nls < lastindex(αs)
             w = copy(ψ)

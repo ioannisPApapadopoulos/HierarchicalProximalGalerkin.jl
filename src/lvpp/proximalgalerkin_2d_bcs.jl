@@ -39,7 +39,7 @@ function BCsObstacleProblem2D(r::AbstractVector{T}, p::Integer, f::AbstractVecto
     Δ = weaklaplacian(Dp)
     A1 = sparse(Symmetric(-parent(Δ)[KR,KR]))
     M1 = sparse(Symmetric((Dp' * Dp)[KR,KR]))
-    A = Symmetric(kron(A1,M1) + kron(M1,A1))
+    A = sparse(kron(A1,M1) + kron(M1,A1))
 
 
     chol_A = MatrixFactorizations.cholesky(A)
