@@ -1,5 +1,6 @@
 using HierarchicalProximalGalerkin
-using Plots, LaTeXStrings
+# using Plots, LaTeXStrings
+using DelimitedFiles
 
 # clrs = theme_palette(:auto)
 
@@ -40,7 +41,7 @@ its2 = []
 alg_its = []
 tics = []
 # for p in 1:6:19
-for p in 15:15
+for p in 11:11
     n = length(r)-1
     TF = Thermoforming2D(Vector(r), p, p, k, Φ₀, ϕ, g, dg);
 
@@ -51,16 +52,18 @@ for p in 15:15
     ob_its = (0,0)
     Phi_its = (0,0)
     iter2 = 0
-    tic = @elapsed for iter in 1:15
+
+    for iter in 1:30
         print("Fixed point iteration: $iter.\n")
         ob(x,y) = obstacle(x,y,p,T,Φ₀,ϕ,C)
         PG = ObstacleProblem2D(r, p, f, ob)#, b=p_u);
         
         # αs = iter ≥ 5 ? [1e-1, 1e0, 1e1, 1e2, 1e2]# : [1e-1]
         αs = [1e-2, 1e-1, 1e0, 1e1, 1e2, 1e3, 1e3, 1e3]
+        αs = 2.0.^(-7:6)
 
-        u_, ψ, iters = pg_hierarchical_solve(PG, αs, gmres_baseline_tol=1e-7, 
-                matrixfree=true,backtracking=true,show_trace=false)
+        u_, ψ, iters = pg_hierarchical_solve(PG, αs, gmres_baseline_tol=1e-8, 
+                matrixfree=true,backtracking=true,show_trace=true, its_max=10, pf_its_max=3, β=1e-8)
         ob_its = ob_its .+ iters
         # push!(ob_its, iters)
 
@@ -73,46 +76,46 @@ for p in 15:15
         iter2 += 1
 
         global u = copy(u_)
-        if h1 < 1e-10
+        if h1 < 1e-5
             print("Convergence reached.\n")
             break
         end
     end
-    push!(its1, ob_its)
-    push!(its2, Phi_its)
-    push!(alg_its, iter2)
-    push!(tics, tic)
+    push!(its1, ob_its); writedlm("output/p-$p/u_its.log")
+    push!(its2, Phi_its); writedlm("output/p-$p/phi_its.log")
+    push!(alg_its, iter2); writedlm("output/p-$p/alg_its.log")
+    # push!(tics, tic)
 end
 
 
-Dp = DirichletPolynomial(r)
-xx = range(0,1,500)
-Ux = evaluate2D(u, xx, xx, 16, Dp)
-# norm(U[findall(U .> 1.0)] .- 1.0, Inf)
-Plots.gr_cbar_offsets[] = (-0.05,-0.01)
-Plots.gr_cbar_width[] = 0.03
-surface(xx,xx,Ux,
-    color=:diverging, #:vik,
-    xlabel=L"x", ylabel=L"y", zlabel=L"u(x,y)",
-    # camera=(30,-30),
-    title="Membrane  "*L"u",
-    margin=(-6, :mm),
-    # zlim=[0,1.3],
-)
-Plots.savefig("thermoforming-membrane.pdf")
+# Dp = DirichletPolynomial(r)
+# xx = range(0,1,500)
+# Ux = evaluate2D(u, xx, xx, 16, Dp)
+# # norm(U[findall(U .> 1.0)] .- 1.0, Inf)
+# Plots.gr_cbar_offsets[] = (-0.05,-0.01)
+# Plots.gr_cbar_width[] = 0.03
+# surface(xx,xx,Ux,
+#     color=:diverging, #:vik,
+#     xlabel=L"x", ylabel=L"y", zlabel=L"u(x,y)",
+#     # camera=(30,-30),
+#     title="Membrane  "*L"u",
+#     margin=(-6, :mm),
+#     # zlim=[0,1.3],
+# )
+# Plots.savefig("thermoforming-membrane.pdf")
 
-ob(x,y) = obstacle(x,y,15,T,Φ₀,ϕ,C)
-surface(xx,xx,ob.(xx',xx),
-    color=:diverging, #:vik,
-    xlabel=L"x", ylabel=L"y", zlabel=L"(\Phi_0 + \xi T)(x,y)",
-    # camera=(30,-30),
-    title="Mould  "*L"\Phi_0 + \xi T",
-    margin=(-6, :mm),
-    # right_margin=3Plots.mm
-    # extra_kwargs=Dict(:subplot=>Dict("3d_colorbar_axis" => [0.1, 0.1, 0.1, 0.1]) )
-    # zlim=[0,1.3],
-)
-Plots.savefig("thermoforming-mould.pdf")
+# ob(x,y) = obstacle(x,y,15,T,Φ₀,ϕ,C)
+# surface(xx,xx,ob.(xx',xx),
+#     color=:diverging, #:vik,
+#     xlabel=L"x", ylabel=L"y", zlabel=L"(\Phi_0 + \xi T)(x,y)",
+#     # camera=(30,-30),
+#     title="Mould  "*L"\Phi_0 + \xi T",
+#     margin=(-6, :mm),
+#     # right_margin=3Plots.mm
+#     # extra_kwargs=Dict(:subplot=>Dict("3d_colorbar_axis" => [0.1, 0.1, 0.1, 0.1]) )
+#     # zlim=[0,1.3],
+# )
+# Plots.savefig("thermoforming-mould.pdf")
 
 # y = 0.5
 # xx = range(0,1,500)

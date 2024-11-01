@@ -6,7 +6,7 @@ function pg_hierarchical_solve(PG::Union{<:ObstacleProblem2D{T},BCsObstacleProbl
         initial_guess=(), its_max::Integer=10, pf_its_max::Integer=2,
         backtracking::Bool=true, matrixfree::Bool=false, 
         return_w::Bool=false, show_trace::Bool=true, 
-        β::T=1e-8, gmres_baseline_tol::T=1e-4,c_1::T=1e-4, Md=[]) where T
+        β::T=1e-8, gmres_baseline_tol::T=1e-4,c_1::T=1e-4, Md=[],tolerance::T=1e-10) where T
 
     # nu, npsi = ( (PG.p+1) * PG.Nh - 1)^2, (PG.p * PG.Nh)^2
     nu, npsi = size(PG.A,1), size(PG.B,2)
@@ -22,7 +22,7 @@ function pg_hierarchical_solve(PG::Union{<:ObstacleProblem2D{T},BCsObstacleProbl
         show_trace && print("Considering α=$α.\n")
         # TOL = α == αs[end] ? 1e-8 : min(1e-5, 1e-1 * 1/α)
         # TOL = 1e-3*α # as used for theromoforming
-        TOL = 1e-10
+        TOL = tolerance
         # TOL = min(1e-5, 1e-1 * 1/α)
         ls_α = 1.0
 
