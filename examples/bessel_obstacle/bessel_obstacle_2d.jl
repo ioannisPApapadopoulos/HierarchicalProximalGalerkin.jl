@@ -10,6 +10,11 @@ This example requires the package ```SpecialFunctions.jl```
 f(x,y) = 100.0
 φ(x,y) = (besselj(0,20x)+1)*(besselj(0,20y)+1)
 
+path = "output/bessel_obstacle/"
+if !isdir(path)
+    mkpath(path)
+end
+
 T = Float64
 
 function bessel_solve(r::AbstractVector{T}, p::Int, f::Function, φ::Function; its_max::Int=6, show_trace::Bool=false) where T
@@ -46,9 +51,9 @@ for p in 1:pmax
     push!(newton_its_p_fem, iters[1])
 end
 avg_tics_p_fem = tics_p_fem ./ newton_its_p_fem
-writedlm("bessel_avg_tics_p_fem.log", avg_tics_p_fem)
-writedlm("bessel_ndofs_p_fem.log", ndofs_p_fem)
-writedlm("bessel_newton_p_fem.log", newton_its_p_fem)
+writedlm(path*"bessel_avg_tics_p_fem.log", avg_tics_p_fem)
+writedlm(path*"bessel_ndofs_p_fem.log", ndofs_p_fem)
+writedlm(path*"bessel_newton_p_fem.log", newton_its_p_fem)
 
 u_ref = reshape(us[end], isqrt(lastindex(us[end])), isqrt(lastindex(us[end])))
 A = PGs_p_fem[end].A
@@ -63,7 +68,7 @@ for iters = 1:pmax-1
     push!(l2s_p_fem, sqrt(d' * (M * d)))
     push!(h1s_p_fem, sqrt(d' * (A * d) + l2s_p_fem[end]^2))
 end
-writedlm("bessel_h1s_p_fem.log", h1s_p_fem)
+writedlm(path*"bessel_h1s_p_fem.log", h1s_p_fem)
 
 ### h-refinement, fixed p
 
@@ -86,9 +91,9 @@ for p in [1,2]
         push!(ndofs_h_fem, size(PG.A, 1))
     end
     avg_tics_h_fem = tics_h_fem ./ newton_its_h_fem
-    writedlm("bessel_avg_tics_h_fem_p_$(p+1).log", avg_tics_h_fem)
-    writedlm("bessel_ndofs_h_fem_p_$(p+1).log", ndofs_h_fem)
-    writedlm("bessel_newton_h_fem_p_$(p+1).log", newton_its_h_fem)
+    writedlm(path*"bessel_avg_tics_h_fem_p_$(p+1).log", avg_tics_h_fem)
+    writedlm(path*"bessel_ndofs_h_fem_p_$(p+1).log", ndofs_h_fem)
+    writedlm(path*"bessel_newton_h_fem_p_$(p+1).log", newton_its_h_fem)
 
     u_ref = reshape(us[end], isqrt(lastindex(us[end])), isqrt(lastindex(us[end])))
     A = PGs_h_fem[end].A
@@ -104,7 +109,7 @@ for p in [1,2]
         d = (u_ref - plan_D * ud.(x,reshape(y,1,1,size(y)...)))[:]
         push!(l2s_h_fem, sqrt(d' * (M * d)))
         push!(h1s_h_fem, sqrt(d' * (A * d) + l2s_h_fem[end]^2))
-        writedlm("bessel_h1s_h_fem_p_$(p+1).log", h1s_h_fem)
+        writedlm(path*"bessel_h1s_h_fem_p_$(p+1).log", h1s_h_fem)
     end
 end
 
@@ -118,7 +123,7 @@ surface(xx,xx,Ux,
     xlabel=L"x", ylabel=L"y", zlabel=L"u(x,y)",
     margin=(-6, :mm),
 )
-Plots.savefig("oscillatory_obstacle.pdf")
+Plots.savefig(path*"oscillatory_obstacle.pdf")
 
 xx = range(0,1,200)
 ux = evaluate2D(us[end], xx, [0.5], PGs[end].p+1, PGs[end].Dp)'
@@ -132,4 +137,4 @@ Plots.plot(xx, [ux ox],
     xtickfontsize=10,ytickfontsize=10,legendfontsize=15,
     ylim=[0,1.25],
     title=L"Slice at $y=1/2$")
-Plots.savefig("oscillatory_obstacle_slice.pdf")
+Plots.savefig(path*"oscillatory_obstacle_slice.pdf")

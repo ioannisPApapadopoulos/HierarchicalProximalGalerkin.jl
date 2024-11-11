@@ -15,6 +15,7 @@ struct AdaptiveObstacleProblem{T}
     φ::AbstractVector{T}
     ψ::AbstractVector{T}
     idx_M::AbstractVector{<:Integer}
+    Ux::Vector{Vector{Matrix{<:T}}}
 end
 
 
@@ -42,7 +43,7 @@ function AdaptiveObstacleProblem(r::AbstractVector{T}, p::AbstractVector{<:Integ
     # B = sparse(view(((P\Dp)'* P' * P),Block.(1:max_p+1), Block.(1:max_p)))[idx_A, idx_M]
     Bb = (Dp' * P)[Block.(1:max_p+1), Block.(1:max_p)]
     B = ExtendableSparseMatrix(size(Bb)...)
-    B[:,:] = Bb
+    B .= Bb
     B = sparse(B)[idx_A, idx_M]
 
     # M = ((P' * P)[Block.(1:p), Block.(1:p)])
@@ -52,7 +53,8 @@ function AdaptiveObstacleProblem(r::AbstractVector{T}, p::AbstractVector{<:Integ
     plan_Ps = ApplyPlan{<:T}[]
     for ups in up
         np = sum(p .== ups)
-        F = plan_transform(Legendre(), (ups, np,), 1)
+        # F = plan_transform(Legendre(), (ups, np,), 1)
+        F = plan_legendre_transform(T, (ups, np,), (1,))
         push!(plan_Ps, ApplyPlan(_perm_blockvec, F, (1,)))
     end
    
@@ -61,7 +63,34 @@ function AdaptiveObstacleProblem(r::AbstractVector{T}, p::AbstractVector{<:Integ
     # plan_Ps = plan_grid_transform.(Ps, p)
     D = ExtendableSparseMatrix(Nh*max_p, Nh*max_p)
     ψ = NaN*ones(size(B,2))
-    AdaptiveObstacleProblem{T}(A, chol_A, copy(p), Nh, B, E, D, M, P, Dp, plan_Ps, plan_D, f, φ, ψ, idx_M)
+    Ux = cache_quadrature_adaptive(Nh, p, plan_Ps, idx_M)
+    AdaptiveObstacleProblem{T}(A, chol_A, copy(p), Nh, B, E, D, M, P, Dp, plan_Ps, plan_D, f, φ, ψ, idx_M, Ux)
+end
+
+function cache_quadrature_adaptive(Nh::Int, p::AbstractVector{<:Integer}, plan_Ps, idx_M::AbstractVector{<:Integer})
+    T = Float64
+    max_p = maximum(p)
+    up = unique(p)
+    Tcx = [Matrix{<:T}[] for _ in 1:max_p]
+    for j in 1:max_p
+        c = zeros(T, max_p*Nh)
+        c[((j-1)*Nh + 1):j*Nh] .= one(T)
+        c = c[idx_M]
+        
+        cs = _cellwise_decomposition(p, Nh, idx_M, c)
+        for i in 1:lastindex(plan_Ps)
+            ups = up[i]
+            plan_P = plan_Ps[i]
+    
+            idx = findall(p .== ups)
+            tcs = cs[idx]
+            # tψx[tψx .< -10] .= -10.0
+            tcx = plan_P \ BlockVec(reduce(hcat, tcs)')
+
+            push!(Tcx[j], tcx)
+        end
+    end
+    return Tcx
 end
 
 function AdaptiveObstacleProblem(r::AbstractVector{T}, p::AbstractVector{<:Integer}, f::Function, φ::Function; compute_chol=true) where T
@@ -124,8 +153,7 @@ function pad_ψ(PG::AdaptiveObstacleProblem{T}, ψ::AbstractVector{T}) where T
     return ψd
 end
 
-function cellwise_decomposition(PG::AdaptiveObstacleProblem, u::AbstractVector{T}) where T
-    p, Nh, idx_M = PG.p, PG.Nh, PG.idx_M
+function _cellwise_decomposition(p::AbstractVector{<:Integer}, Nh::Integer, idx_M::AbstractVector{<:Integer}, u::AbstractVector{T}) where T
     max_p = maximum(p)
     fu = zeros(Nh*max_p)
     fu[idx_M] = u
@@ -135,6 +163,10 @@ function cellwise_decomposition(PG::AdaptiveObstacleProblem, u::AbstractVector{T
         append!(us, [fu[i:Nh:p[i]*Nh]])
     end
     us
+end
+
+function cellwise_decomposition(PG::AdaptiveObstacleProblem, u::AbstractVector{T}) where T
+    _cellwise_decomposition(PG.p, PG.Nh, PG.idx_M, u)
 end
 
 function cellwise_interlace(PG::AdaptiveObstacleProblem, u::AbstractVector{<:AbstractVector{<:T}}) where T

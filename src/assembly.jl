@@ -20,7 +20,8 @@ function assemble_D(PG::AdaptiveObstacleProblem{T}, ψ::AbstractVector{T}) where
         c = zeros(max_p*Nh)
         c[((j-1)*Nh + 1):j*Nh] .= one(T)
         c = c[idx_M]
-        da = apply_D_adaptive(PG, c, ψ)
+        # da = apply_D_adaptive(PG, c, ψ)
+        da = _assemble_D_adaptive(PG, ψ, j)
         push!(das, da)
     end
 
@@ -34,6 +35,27 @@ function assemble_D(PG::AdaptiveObstacleProblem{T}, ψ::AbstractVector{T}) where
         end
     end
     return sparse(D[idx_M, idx_M])
+end
+
+function _assemble_D_adaptive(PG::AdaptiveObstacleProblem{T}, ψ::AbstractVector{T}, j::Int) where T
+    M, plan_Ps, p = PG.M, PG.plan_Ps, PG.p
+    up = unique(p)
+
+    ψs = cellwise_decomposition(PG, ψ)
+    for i in 1:lastindex(plan_Ps)
+        ups = up[i]
+        plan_P = plan_Ps[i]
+
+        idx = findall(p .== ups)
+        tψs = ψs[idx]
+
+        tψx = plan_P \ BlockVec(reduce(hcat, tψs)')
+        vals = exp.(-tψx) .* PG.Ux[j][i]
+        ψc = plan_P * vals
+        rψc = reshape(ψc, reverse(size(plan_P)))
+        for j in 1:size(rψc,1) ψs[idx[j]] = rψc[j,:] end
+    end
+    M * cellwise_interlace(PG, ψs)
 end
 
 function assemble_D(PG::Union{<:ObstacleProblem2D{T},<:BCsObstacleProblem2D{T}}, ψ::AbstractVector{T}) where T

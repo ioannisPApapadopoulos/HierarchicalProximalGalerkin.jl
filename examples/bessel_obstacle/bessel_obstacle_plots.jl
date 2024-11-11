@@ -1,15 +1,16 @@
 using DelimitedFiles
 using Plots, LaTeXStrings
 
+path = "output/bessel_obstacle/"
 
-ndofs_p_fem, ndofs_h_fem_p_2, ndofs_h_fem_p_3, ndofs_hik = readdlm("bessel_ndofs_p_fem.log"), 
-    readdlm("bessel_ndofs_h_fem_p_2.log"), readdlm("bessel_ndofs_h_fem_p_3.log"), readdlm("bessel_ndofs_hik.log")
+ndofs_p_fem, ndofs_h_fem_p_2, ndofs_h_fem_p_3, ndofs_hik = readdlm(path*"bessel_ndofs_p_fem.log"), 
+    readdlm(path*"bessel_ndofs_h_fem_p_2.log"), readdlm(path*"bessel_ndofs_h_fem_p_3.log"), readdlm(path*"bessel_ndofs_hik.log")
 
-h1s_p_fem, h1s_h_fem_p_2, h1s_h_fem_p_3, h1s_hik = readdlm("bessel_h1s_p_fem.log"), 
-    readdlm("bessel_h1s_h_fem_p_2.log"), readdlm("bessel_h1s_h_fem_p_3.log"), readdlm("bessel_h1s_hik.log")
+h1s_p_fem, h1s_h_fem_p_2, h1s_h_fem_p_3, h1s_hik = readdlm(path*"bessel_h1s_p_fem.log"), 
+    readdlm(path*"bessel_h1s_h_fem_p_2.log"), readdlm(path*"bessel_h1s_h_fem_p_3.log"), readdlm(path*"bessel_h1s_hik.log")
 
-avg_tics_p_fem, avg_tics_h_fem_p_2, avg_tics_h_fem_p_3, avg_tics_hik = readdlm("bessel_avg_tics_p_fem.log"), 
-    readdlm("bessel_avg_tics_h_fem_p_2.log"), readdlm("bessel_avg_tics_h_fem_p_3.log"), readdlm("bessel_avg_tics_hik.log")
+avg_tics_p_fem, avg_tics_h_fem_p_2, avg_tics_h_fem_p_3, avg_tics_hik = readdlm(path*"bessel_avg_tics_p_fem.log"), 
+    readdlm(path*"bessel_avg_tics_h_fem_p_2.log"), readdlm(path*"bessel_avg_tics_h_fem_p_3.log"), readdlm(path*"bessel_avg_tics_hik.log")
 
 
 

@@ -3,11 +3,15 @@ function assembly_solve(PG::Union{<:ObstacleProblem{T}, <:AdaptiveObstacleProble
     A, B = PG.A, PG.B
     M = PG.M
 
-    if PG.ψ ≠ ψ
-        PG.D .= assemble_D(PG,ψ)
-        PG.ψ .= ψ
+    if !(PG isa AdaptiveObstacleProblem{<:T})
+        if PG.ψ ≠ ψ
+            PG.D .= assemble_D(PG,ψ)
+            PG.ψ .= ψ
+        end
+        D = sparse(PG.D)
+    else
+        D = assemble_D(PG,ψ)
     end
-    D = sparse(PG.D)
 
     X = [α*A B;-B' D+β*M]
     luX = MatrixFactorizations.lu(X)

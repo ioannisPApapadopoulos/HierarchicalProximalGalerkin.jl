@@ -6,6 +6,10 @@ using Plots, DelimitedFiles
 f(x,y) = 100.0
 φ(x,y) = (besselj(0,20x)+1)*(besselj(0,20y)+1)
 
+path = "output/bessel_obstacle/"
+if !isdir(path)
+    mkpath(path)
+end
 
 T = Float64
 r = range(0,1,11)
@@ -15,7 +19,6 @@ tics = T[]
 ndofs = Int64[]
 HIKs = []
 for iters = 1:5
-
     print("\nMesh level: $iters.\n")
     HIK = HIKSolver2D(r, f, φ)
     push!(HIKs, HIK)
@@ -30,14 +33,14 @@ for iters = 1:5
     end
 
     tic = @elapsed u, λ, its = HierarchicalProximalGalerkin.solve(HIK, u0, show_trace=false, tol=1e-7);
-    writedlm("bessel_u_$iters.log", u)
+    writedlm(path*"bessel_u_$iters.log", u)
     push!(us, u); push!(newton_its, its); push!(tics, tic)
     global r = uniform_refine(r)
     push!(rs, r)
 end
 avg_tics = tics ./ newton_its
-writedlm("bessel_ndofs_hik.log", ndofs)
-writedlm("bessel_avg_tics_hik.log", avg_tics)
+writedlm(path*"bessel_ndofs_hik.log", ndofs)
+writedlm(path*"bessel_avg_tics_hik.log", avg_tics)
 
 u_ref = us[end]
 Dp, A, M = HIKs[end].Dp, HIKs[end].A, HIKs[end].M
@@ -50,5 +53,5 @@ for iters = 1:4
     d = u_ref - (plan_D * ud.(x,reshape(y,1,1,size(y)...)))[:]
     push!(l2s, sqrt(d' * (M * d)))
     push!(h1s, sqrt(d' * (A * d) + l2s[end]^2))
-    writedlm("bessel_h1s_hik.log", h1s)
+    writedlm(path*"bessel_h1s_hik.log", h1s)
 end

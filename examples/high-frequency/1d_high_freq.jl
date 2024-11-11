@@ -1,11 +1,12 @@
 using MKL
 using HierarchicalProximalGalerkin, SparseArrays
 using IterativeSolvers, LinearAlgebra
-using Plots, LaTeXStrings
+using Plots, LaTeXStrings, DelimitedFiles
 
 include("high_freq_setup.jl")
 
-function high_freq_solve(r::AbstractVector{T}, p::Union{<:Int, Vector{<:Int}}, refinement_strategy::Function; nlevels::Int=6) where T
+function high_freq_solve(r::AbstractVector{T}, p::Union{<:Int, Vector{<:Int}}, 
+    refinement_strategy::Function; nlevels::Int=6, tol::T=1e-10, pf_max_its::Int=2) where T
 
 
     l2s_u, ndofs_u, h1s_u, tics = T[], Int[], T[], T[]
@@ -19,17 +20,22 @@ function high_freq_solve(r::AbstractVector{T}, p::Union{<:Int, Vector{<:Int}}, r
         PG = p isa Int ? ObstacleProblem(r, p, f, φ) : AdaptiveObstacleProblem(r, p, f, φ)
         push!(ndofs_u,lastindex(PG.A,1))
         
-        Dp, bb = PG.Dp, 39
+        Dp, bb = PG.Dp, 42
         xg, plan_D = plan_grid_transform(Dp, (Block(bb),), 1);
         uD = pad(plan_D * ua.(xg), axes(Dp,2))
         Md = sparse(grammatrix(Dp)[Block.(1:bb), Block.(1:bb)])
         Ad = sparse(-weaklaplacian(Dp)[Block.(1:bb), Block.(1:bb)]);
 
-        # αs = vcat([1e-3*2^i for i = 0:14], repeat([20],7))
-        αs = [Vector(2.0.^(-7:3)); 2^3]
-        tic = @elapsed u, ψ, w, iters = pg_hierarchical_solve(PG, αs;its_max=50, 
-                show_trace=true, pf_its_max=5, #gmres_baseline_tol=1e-10,
-                matrixfree=false,  backtracking=true, return_w=true, c_1=-1e4)
+        # αs = [Vector(2.0.^(-7:3)); 2^3]
+        # tic = @elapsed u, ψ, w, iters = pg_hierarchical_solve(PG, αs;its_max=50, 
+        #         show_trace=true, pf_its_max=5, #gmres_baseline_tol=1e-10,
+        #         matrixfree=false,  backtracking=true, return_w=true, c_1=-1e4)
+        αs = [Vector(2.0.^(-7:0.5:-3)); 2^(-3)]
+        # αs = Vector(2.0.^(-7:0.5:-3))
+        tic = @elapsed u, ψ, w, iters = pg_hierarchical_solve(PG, αs;its_max=6, 
+                show_trace=true, pf_its_max=pf_max_its, #gmres_baseline_tol=1e-10,
+                matrixfree=false, gmres_baseline_tol=1e-12, backtracking=true, return_w=true, c_1=-1e4,
+                tolerance=tol)
         # push!(us, u); push!(ψs, ψ); push!(ws, w); push!(λs, (w-ψ)/αs[end])
         push!(us, u)
         
@@ -49,45 +55,86 @@ function high_freq_solve(r::AbstractVector{T}, p::Union{<:Int, Vector{<:Int}}, r
     return us, (l2s_u, h1s_u), ndofs_u, (iter_count, gmres_count), rs, ps, tics
 end
 
+function pg_h_adaptive_p_uniform_refine(r::AbstractVector, p::Int, MA)
+    ϵs = error_estimates(MA, pg=false)
+    h_refine(MA,ϵs,δ=0.3), p+1
+end
+p=3
+us, (l2s_u, h1s_u), ndofs, iters, rs, ps, tics = 
+    high_freq_solve(range(0,1,11), p, pg_h_adaptive_p_uniform_refine, nlevels=9)
+save_data(ndofs, tics ./ iters[1], h1s_u, "pg_h_adaptive_p_uniform_refine_p_$(p)")
+Plots.plot!(ndofs, h1s_u, marker=:xcross, linewidth=2, xaxis=:log10, yaxis=:log10, label=L"h"*"-adaptive (VI), "*L"p"*"-uniform")
 
-    # r, p = hp_uniform_refine(r,p,σs,σ=0.1)
 
-    # r = uniform_refine(r)
-    # p = repeat([1],length(r)-1)[:]
-    
-    # r,p = hp_refine(MA,ϵs,σs, δ=δ, σ=0.1)
 function pg_hp_refine(r::AbstractVector, p::Vector{<:Int}, MA)
     ϵs = error_estimates(MA, pg=false)
     σs = analyticity_coeffs(MA)
-    hp_refine(MA,ϵs,σs, δ=0.3, σ=0.05)
-    # r,p_ = hp_refine(MA,ϵs,σs, δ=0.3, σ=0.1)
-    # r, [p[1]+2 for _ in 1:length(r)-1]
+    hp_refine(MA,ϵs,σs, δ=0.7, σ=0.8)
 end
 us, (l2s_u, h1s_u), ndofs, iters, rs, ps, tics = 
-    high_freq_solve(range(0,1,11), [11 for _ in 1:10], pg_hp_refine, nlevels=11)
+    high_freq_solve(range(0,1,11), [1 for _ in 1:10], pg_hp_refine, nlevels=10, pf_max_its=3)
 save_data(ndofs, tics ./ iters[1], h1s_u, "pg_hp_refine")
-Plots.plot(ndofs, h1s_u, yticks=[1e-4,1e-3,1e-2,1e-1,1e0], marker=:xcross, linewidth=2, xaxis=:log10, yaxis=:log10, label=L"hp"*"-adaptive")
+hs = rs[end][2:end]-rs[end][1:end-1]
+minimum(hs), maximum(hs)
+minimum(ps[end]), maximum(ps[end])
+h1s_u[end]
+Plots.plot!(ndofs, h1s_u, yticks=[1e-4,1e-3,1e-2,1e-1,1e0], marker=:xcross, linewidth=2, xaxis=:log10, yaxis=:log10, label=L"hp"*"-adaptive")
 
 function pg_h_uniform_refine(r::AbstractVector, p::Int, MA)
     uniform_refine(r), p
 end
-p = 1
+p = 3
+nlevels =  p≈1 ? 8 : 7
 us, (l2s_u, h1s_u), ndofs, iters, rs, ps, tics = 
-    high_freq_solve(range(0,1,11), p, pg_h_uniform_refine, nlevels=7)
+    high_freq_solve(range(0,1,11), p, pg_h_uniform_refine, nlevels=nlevels)
 save_data(ndofs, tics ./ iters[1], h1s_u, "pg_h_uniform_refine_p_$p")
 Plots.plot!(ndofs, h1s_u, marker=:xcross, linewidth=2, xaxis=:log10, yaxis=:log10, label="Uniform "*L"h, p="*"$p")
 
 
-function pg_h_adaptive_refine(r::AbstractVector, p::Int, MA)
-    ϵs = error_estimates(MA, pg=false)
-    h_refine(MA,ϵs,δ=0.7), p
-end
-p = 1
-us, (l2s_u, h1s_u), ndofs, iters, rs, ps, tics = 
-    high_freq_solve(range(0,1,11), p, pg_h_adaptive_refine, nlevels=10)
-save_data(ndofs, tics ./ iters[1], h1s_u, "pg_h_adaptive_refine_p_$p")
-Plots.plot!(ndofs, h1s_u, marker=:xcross, linewidth=2, xaxis=:log10, yaxis=:log10, label=L"h"*"-adaptive (VI), "*L"p="*"$p")
+# function pg_h_adaptive_refine(r::AbstractVector, p::Int, MA)
+#     ϵs = error_estimates(MA, pg=false)
+#     h_refine(MA,ϵs,δ=0.5), p
+# end
+# p = 3
+# us, (l2s_u, h1s_u), ndofs, iters, rs, ps, tics = 
+#     high_freq_solve(range(0,1,11), p, pg_h_adaptive_refine, nlevels=15)
+# save_data(ndofs, tics ./ iters[1], h1s_u, "pg_h_adaptive_refine_p_$p")
+# Plots.plot!(ndofs, h1s_u, marker=:xcross, linewidth=2, xaxis=:log10, yaxis=:log10, label=L"h"*"-adaptive (VI), "*L"p="*"$p")
 
+
+function pg_p_uniform_refine(r::AbstractVector, p::Int, MA)
+    r, p+1
+end
+us, (l2s_u, h1s_u), ndofs, iters, rs, ps, tics = 
+    high_freq_solve(range(0,1,21), 1, pg_p_uniform_refine, nlevels=30)
+save_data(ndofs, tics ./ iters[1], h1s_u, "pg_p_uniform_refine")
+Plots.plot!(ndofs, h1s_u, marker=:xcross, linewidth=2, xaxis=:log10, yaxis=:log10, label=L"p"*"-uniform")
+
+# function pg_h_adaptive_p_adaptive(r::AbstractVector, p::Int, MA)
+#     ϵs = error_estimates(MA, pg=false)
+#     σs = analyticity_coeffs(MA)
+#     if minimum(σs) < 0.1 / p
+#         p = p+2
+#         print("p-refined.\n")
+#     end
+#     h_refine(MA,ϵs,δ=0.7), p
+# end
+# u, (l2s_u, h1s_u), ndofs, iters, rs, ps, tics = 
+#     high_freq_solve(range(0,1,11), 1, pg_h_adaptive_p_adaptive, nlevels=12)
+# Plots.plot!(ndofs, h1s_u, marker=:xcross, linewidth=2, xaxis=:log10, yaxis=:log10, label=L"p"*"-uniform")
+
+
+
+
+####### pg=true
+function pg_hp_refine(r::AbstractVector, p::Vector{<:Int}, MA)
+    ϵs = error_estimates(MA, pg=true)
+    σs = analyticity_coeffs(MA)
+    hp_refine(MA,ϵs,σs, δ=0.3, σ=0.8)
+end
+us, (l2s_u, h1s_u), ndofs, iters, rs, ps, tics = 
+    high_freq_solve(range(0,1,11), [1 for _ in 1:10], pg_hp_refine, nlevels=7)
+save_data(ndofs, tics ./ iters[1], h1s_u, "pg_hp_refine_pg_true")
 function pg_h_adaptive_refine_pg(r::AbstractVector, p::Int, MA)
     ϵs = error_estimates(MA, pg=true)
     h_refine(MA,ϵs,δ=0.7), p
@@ -98,73 +145,10 @@ p = 1
 save_data(ndofs, tics ./ iters[1], h1s_u, "pg_h_adaptive_refine_p_$(p)_pg_true")
 Plots.plot!(ndofs, h1s_u, marker=:xcross, linewidth=2, xaxis=:log10, yaxis=:log10, label=L"h"*"-adaptive (PG), "*L"p="*"$p")
 
-function pg_h_adaptive_p_uniform_refine(r::AbstractVector, p::Int, MA)
-    ϵs = error_estimates(MA, pg=false)
-    h_refine(MA,ϵs,δ=0.3), p+2
-end
-p=1
-us, (l2s_u, h1s_u), ndofs, iters, rs, ps, tics = 
-    high_freq_solve(range(0,1,11), p, pg_h_adaptive_p_uniform_refine, nlevels=8)
-save_data(ndofs, tics ./ iters[1], h1s_u, "pg_h_adaptive_p_uniform_refine_p_$(p)")
-Plots.plot!(ndofs, h1s_u, marker=:xcross, linewidth=2, xaxis=:log10, yaxis=:log10, label=L"h"*"-adaptive (VI), "*L"p"*"-uniform")
 
-
-# function pg_h_adaptive_p_uniform_refine(r::AbstractVector, p::Vector{<:Int}, MA)
-#     ϵs = error_estimates(MA, pg=false)
-#     r = h_refine(MA,ϵs,δ=0.3)
-#     r, [p[1]+2 for _ in 1:length(r)-1]
-# end
-# us, (l2s_u, h1s_u), ndofs, iters, rs, ps, tics = 
-#     high_freq_solve(range(0,1,11), [1 for _ in 1:10], pg_h_adaptive_p_uniform_refine, nlevels=6)
-# Plots.plot(ndofs, h1s_u, marker=:xcross, linewidth=2, xaxis=:log10, yaxis=:log10, label=L"h"*"-adaptive (VI), "*L"p"*"-uniform")
-
-function pg_p_uniform_refine(r::AbstractVector, p::Int, MA)
-    r, p+4
-end
-(l2s_u, h1s_u), ndofs, iters, rs, ps, tics = 
-    high_freq_solve(range(0,1,11), 1, pg_p_uniform_refine, nlevels=10)
-save_data(ndofs, tics ./ iters[1], h1s_u, "pg_p_uniform_refine")
-Plots.plot!(ndofs, h1s_u, marker=:xcross, linewidth=2, xaxis=:log10, yaxis=:log10, label=L"p"*"-uniform")
-
-function pg_h_adaptive_p_adaptive(r::AbstractVector, p::Int, MA)
-    ϵs = error_estimates(MA, pg=false)
-    σs = analyticity_coeffs(MA)
-    if minimum(σs) < 0.1 / p
-        p = p+2
-        print("p-refined.\n")
-    end
-    h_refine(MA,ϵs,δ=0.7), p
-end
-(l2s_u, h1s_u), ndofs, iters, rs, ps, tics = 
-    high_freq_solve(range(0,1,11), 1, pg_h_adaptive_p_adaptive, nlevels=12)
-Plots.plot!(ndofs, h1s_u, marker=:xcross, linewidth=2, xaxis=:log10, yaxis=:log10, label=L"p"*"-uniform")
-
-
-
-Plots.plot(ndofs_hp_refine_pg_false, h1s_u_hp_refine_pg_false, marker=:diamond, linewidth=2)
-Plots.plot!(ndofs_hp_refine_pg_true, h1s_u_hp_refine_pg_true, yaxis=:log10,
-    linewidth=2,
-    marker=:dtriangle,
-    # label="h-adaptive",
-    xlabel="dofs",ylabel=L"$\Vert u - u_h \Vert_{L^2}$")
-Plots.plot!(ndofs_hp_uniform_refine_pg_false, h1s_u_hp_uniform_refine_pg_false, marker=:xcross, linewidth=2, xaxis=:log10)
-Plots.plot!(ndofs_uniform_refine_pg_false, h1s_u_uniform_refine_pg_false, marker=:xcross, linewidth=2, xaxis=:log10)
-Plots.plot!(ndofs, h1s_u, marker=:xcross, linewidth=2, xaxis=:log10)
-
-
-i=4; Plots.plot(rs[i], zeros(size(rs[i])), marker=:circle)
-
-xx = 0:0.001:1
-# PG = AdaptiveObstacleProblem(rs[end], ps[end], f, φ);
-i=3; vals = evaluate_u(PGs[i],xx,us[i])
-Plots.plot(xx,vals)
-Plots.plot!(xx,ua.(xx))
-Plots.plot(xx, abs.(vals-ua.(xx)))
-
-
-## Plotting
-vals = evaluate_u(PGs[end],xx,us[end])
-Plots.plot(xx,[vals ones(lastindex(xx))], xlabel=L"x", 
+## Solution plotting
+xx = range(0,1,201)
+Plots.plot(xx,[ua.(xx) ones(lastindex(xx))], xlabel=L"x", 
     xlabelfontsize=15, xtickfontsize=12, ytickfontsize=12, 
     label=[L"u(x)" L"\varphi(x)"],
     legendfontsize=12,

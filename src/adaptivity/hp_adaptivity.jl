@@ -166,6 +166,9 @@ function error_estimates(MA::MeshAdaptivity{T}; pg::Bool=false) where T
     φP = MA.φP[Block.(1:p+12)]
     MP = M[Block.(1:p+12), Block.(1:p+12)]
     Mb = M[Block.(1:p+2), Block.(1:p+2)]
+    if PG isa Union{<:ObstacleProblem{T}, <:AdaptiveObstacleProblem{T}}
+        exp_ψP = exp_ψP[Block.(1:p+2)]
+    end
 
     for K in 1:n
         fv = pad(fc,axes(up,1))[K:n:end]
@@ -226,14 +229,15 @@ function hp_refine(MA::MeshAdaptivity{T}, ϵs::AbstractVector{T}, σs::AbstractV
         # idxs = idx-1:idx+1
         if σs[idx] < σ
             p[idx] = p[idx].+dp
-        else
-            r_ = sort(r_ ∪ (r[idx.+1]+r[idx]) ./2 )
-            # min(p[idx],p[idx+1]), 
-            min_p = minimum(p)
-            p = vcat(p[1:idx],min_p,p[idx+1:end])
         end
+        # else
+            r_ = sort(r_ ∪ (r[idx.+1]+r[idx]) ./2 )
+            min_p = max(p[idx],p[idx+1])
+            # min_p = minimum(p)
+            p = vcat(p[1:idx],min_p,p[idx+1:end])
+        # end
     end
-    p[findall(p .< maximum(p)-3)] .=  maximum(p)-3
+    p[findall(p .< maximum(p)-5)] .=  maximum(p)-5
     (r_,p)
 end
 
