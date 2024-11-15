@@ -42,7 +42,7 @@ for iters = 1:8
     tic = @elapsed u, λ, its = HierarchicalProximalGalerkin.solve(HIK, u0, show_trace=false, tol=1e-7);
     writedlm(path*"bessel_u_$iters.log", u)
     push!(us, u); push!(newton_its, its); push!(tics, tic)
-    r = uniform_refine(r)
+    r = range(0,1,2*r.len-1)
     push!(rs, r)
 end
 avg_tics = tics ./ newton_its

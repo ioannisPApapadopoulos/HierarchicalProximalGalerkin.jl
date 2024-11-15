@@ -25,21 +25,31 @@ function HIKSolver(r::AbstractVector{T}, f::Function, φ::Function) where T
     HIKSolver{T}(A, r, Nh, M, Dp, plan_D, fv, φv, 1)
 end
 
-function HIKSolver2D(r::AbstractVector{T}, f::Function, φ::Function) where T
-    Nh = length(r)-1
+function HIKSolver2D(r::AbstractRange{T}, f::Function, φ::Function) where T
+    
+    
+    N = length(r)-1
+    h = step(r)
+    si = inv(h)
+    t1 = fill(-2si, N-2)
+    t2 = fill(si, N-3)
+
     Dp = DirichletPolynomial(r)
     xy, plan_D = plan_grid_transform(Dp, Block(1,1))
     x,y = first(xy), last(xy)
-    fv = (plan_D * f.(x,reshape(y,1,1,size(y)...)))[:]
-    φv = (plan_D * φ.(x,reshape(y,1,1,size(y)...)))[:]
+    fv = vec(plan_D * f.(x,reshape(y,1,1,size(y)...)))
+    φv = vec(plan_D * φ.(x,reshape(y,1,1,size(y)...)))
 
-    Δ = weaklaplacian(Dp)
-    A1 = sparse(Symmetric(-parent(Δ)[Block.(oneto(1)),Block.(oneto(1))]))
-    M1 = sparse(Symmetric((Dp' * Dp)[Block.(oneto(1)),Block.(oneto(1))]))
+    # Δ = weaklaplacian(Dp)
+    # A1 = sparse(Symmetric(-parent(Δ)[Block.(oneto(1)),Block.(oneto(1))]))
+    # M1 = sparse(Symmetric((Dp' * Dp)[Block.(oneto(1)),Block.(oneto(1))]))
+
+    M1 = sparse(Symmetric(Bidiagonal(fill(2h/3, N-1), fill(h/6, N-2), :U)))
+    A1 = sparse(Symmetric(Bidiagonal(t1, t2, :U)))
     A = sparse(Symmetric(kron(A1,M1) + kron(M1,A1)))
     M = sparse(Symmetric(kron(M1, M1)))
 
-    HIKSolver{T}(A, r, Nh, M, Dp, plan_D, fv, φv, 2)
+    HIKSolver{T}(A, r, N, M, Dp, plan_D, fv, φv, 2)
 end
 
 function project!(x::AbstractVector{T}, lb::AbstractVector{T}, ub::AbstractVector{T}) where T
