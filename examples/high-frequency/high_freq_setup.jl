@@ -46,8 +46,9 @@ function ua(x::T) where T
     end
 end
 
-function save_data(ndofs, avg_tics, h1s, subpath)
+function save_data(ndofs, tics, avg_tics, h1s, subpath)
     writedlm(path*subpath*"_ndofs.log", ndofs)
     writedlm(path*subpath*"_avg_tics.log", avg_tics)
+    writedlm(path*subpath*"_tics.log", tics)
     writedlm(path*subpath*"_h1s.log", h1s)
 end

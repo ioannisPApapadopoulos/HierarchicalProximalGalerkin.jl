@@ -20,7 +20,7 @@ struct ObstacleProblem2D{T}
 end
 
 function ObstacleProblem2D(r::AbstractVector{T}, p::Integer, f::AbstractVector{T}, φ::AbstractVector{T},
-        plan_P::PiecewiseOrthogonalPolynomials.ApplyPlan{T}) where T
+        plan_P::PiecewiseOrthogonalPolynomials.ApplyPlan{T};matrixfree::Bool=true) where T
     Dp = DirichletPolynomial(r)
     P = ContinuousPolynomial{0}(r)
     Nh = length(r)-1
@@ -46,7 +46,11 @@ function ObstacleProblem2D(r::AbstractVector{T}, p::Integer, f::AbstractVector{T
     Mp = Diagonal((P' * P)[Block.(1:p), Block.(1:p)])
     M = sparse(kron(Mp,Mp))
 
-    E = preconditioner_E(r, p, Nh)
+    if matrixfree
+        E = preconditioner_E(r, p, Nh)
+    else
+        E = spzeros(1,1)
+    end
 
     D = sparsity_pattern_D(size(B,2), p, Nh, T)
     ψ = NaN*ones(size(B,2))
@@ -130,7 +134,12 @@ function preconditioner_E(r::AbstractVector{T}, p::Integer, Nh::Integer) where T
     ML4 = kron(ML3b, ML3b)
 
     chol_AL2 = MatrixFactorizations.cholesky(AL2)
-    sparse(ML4 * ldiv!(chol_AL2, Matrix(ML4)'))
+    E = ExtendableSparseMatrix(p^2*Nh^2, p^2*Nh^2)
+    for j in axes(E,2)
+        E[:,j] .= sparse(ML4 * ldiv!(chol_AL2, ML4[:,j]))
+    end
+    return E
+    # sparse(ML4 * ldiv!(chol_AL2, Matrix(ML4)'))
 end
 
 function cache_quadrature2D(Nh::Int, p::Int, nb::Int, G::PiecewiseOrthogonalPolynomials.ApplyPlan{T}) where T
@@ -196,7 +205,7 @@ function sparsity_pattern_D(nb::Integer, p::Integer, Nh::Integer, T::Type)
     return D
 end
 
-function ObstacleProblem2D(r::AbstractVector{T}, p::Integer, f::Function, φ::Function) where T
+function ObstacleProblem2D(r::AbstractVector{T}, p::Integer, f::Function, φ::Function;matrixfree::Bool=true) where T
     P = ContinuousPolynomial{0}(r)
 
     xy, plan_P = grid(P, Block(p,p)), plan_piecewise_legendre_transform(r,(Block(p), Block(p)),(1,2))
@@ -205,23 +214,23 @@ function ObstacleProblem2D(r::AbstractVector{T}, p::Integer, f::Function, φ::Fu
     fv = (plan_P * f.(x,reshape(y,1,1,size(y)...)))[:]
     φv = (plan_P * φ.(x,reshape(y,1,1,size(y)...)))[:]
 
-    ObstacleProblem2D(r, p, fv, φv, plan_P)
+    ObstacleProblem2D(r, p, fv, φv, plan_P,matrixfree=matrixfree)
 end
 
-function ObstacleProblem2D(r::AbstractVector{T}, p::Integer, f::AbstractMatrix{T}, φ::Function; b::Integer=-1) where T
+function ObstacleProblem2D(r::AbstractVector{T}, p::Integer, f::AbstractMatrix{T}, φ::Function;matrixfree::Bool=true, b::Integer=-1) where T
     P = ContinuousPolynomial{0}(r)
     xy, plan_P = grid(P, Block(p,p)), plan_piecewise_legendre_transform(r,(Block(p), Block(p)),(1,2))
     x,y = first(xy), last(xy)
     φv = (plan_P * φ.(x,reshape(y,1,1,size(y)...)))[:]
-    ObstacleProblem2D(r, p, f, φv, plan_P)
+    ObstacleProblem2D(r, p, f, φv, plan_P,matrixfree=matrixfree)
 end
 
-function ObstacleProblem2D(r::AbstractVector{T}, p::Integer, f::Function, φ::AbstractMatrix{T}; b::Integer=-1) where T
+function ObstacleProblem2D(r::AbstractVector{T}, p::Integer, f::Function, φ::AbstractMatrix{T};matrixfree::Bool=true, b::Integer=-1) where T
     P = ContinuousPolynomial{0}(r)
     xy, plan_P = grid(P, Block(p,p)), plan_piecewise_legendre_transform(r,(Block(p), Block(p)),(1,2))
     x,y = first(xy), last(xy)
     fv = (plan_P * f.(x,reshape(y,1,1,size(y)...)))[:]
-    ObstacleProblem2D(r, p, fv, φ, plan_P)
+    ObstacleProblem2D(r, p, fv, φ, plan_P,matrixfree=matrixfree)
 end
 
 function show(io::IO, PG::ObstacleProblem2D{T}) where T

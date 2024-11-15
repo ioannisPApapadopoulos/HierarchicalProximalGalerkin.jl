@@ -33,9 +33,9 @@ function high_freq_solve(r::AbstractVector{T}, p::Union{<:Int, Vector{<:Int}},
         αs = [Vector(2.0.^(-7:0.5:-3)); 2^(-3)]
         # αs = Vector(2.0.^(-7:0.5:-3))
         tic = @elapsed u, ψ, w, iters = pg_hierarchical_solve(PG, αs;its_max=6, 
-                show_trace=true, pf_its_max=pf_max_its, #gmres_baseline_tol=1e-10,
+                show_trace=false, pf_its_max=pf_max_its, #gmres_baseline_tol=1e-10,
                 matrixfree=false, gmres_baseline_tol=1e-12, backtracking=true, return_w=true, c_1=-1e4,
-                tolerance=tol)
+                tolerance=tol, β=1e-8)
         # push!(us, u); push!(ψs, ψ); push!(ws, w); push!(λs, (w-ψ)/αs[end])
         push!(us, u)
         
@@ -62,7 +62,7 @@ end
 p=3
 us, (l2s_u, h1s_u), ndofs, iters, rs, ps, tics = 
     high_freq_solve(range(0,1,11), p, pg_h_adaptive_p_uniform_refine, nlevels=9)
-save_data(ndofs, tics ./ iters[1], h1s_u, "pg_h_adaptive_p_uniform_refine_p_$(p)")
+save_data(ndofs, tics, tics ./ iters[1], h1s_u, "pg_h_adaptive_p_uniform_refine_p_$(p)")
 Plots.plot!(ndofs, h1s_u, marker=:xcross, linewidth=2, xaxis=:log10, yaxis=:log10, label=L"h"*"-adaptive (VI), "*L"p"*"-uniform")
 
 
@@ -73,7 +73,7 @@ function pg_hp_refine(r::AbstractVector, p::Vector{<:Int}, MA)
 end
 us, (l2s_u, h1s_u), ndofs, iters, rs, ps, tics = 
     high_freq_solve(range(0,1,11), [1 for _ in 1:10], pg_hp_refine, nlevels=10, pf_max_its=3)
-save_data(ndofs, tics ./ iters[1], h1s_u, "pg_hp_refine")
+save_data(ndofs, tics, tics ./ iters[1], h1s_u, "pg_hp_refine")
 hs = rs[end][2:end]-rs[end][1:end-1]
 minimum(hs), maximum(hs)
 minimum(ps[end]), maximum(ps[end])
@@ -87,7 +87,7 @@ p = 3
 nlevels =  p≈1 ? 8 : 7
 us, (l2s_u, h1s_u), ndofs, iters, rs, ps, tics = 
     high_freq_solve(range(0,1,11), p, pg_h_uniform_refine, nlevels=nlevels)
-save_data(ndofs, tics ./ iters[1], h1s_u, "pg_h_uniform_refine_p_$p")
+save_data(ndofs, tics, tics ./ iters[1], h1s_u, "pg_h_uniform_refine_p_$p")
 Plots.plot!(ndofs, h1s_u, marker=:xcross, linewidth=2, xaxis=:log10, yaxis=:log10, label="Uniform "*L"h, p="*"$p")
 
 
@@ -106,8 +106,8 @@ function pg_p_uniform_refine(r::AbstractVector, p::Int, MA)
     r, p+1
 end
 us, (l2s_u, h1s_u), ndofs, iters, rs, ps, tics = 
-    high_freq_solve(range(0,1,21), 1, pg_p_uniform_refine, nlevels=30)
-save_data(ndofs, tics ./ iters[1], h1s_u, "pg_p_uniform_refine")
+    high_freq_solve(range(0,1,21), 1, pg_p_uniform_refine, nlevels=40)
+save_data(ndofs, tics, tics ./ iters[1], h1s_u, "pg_p_uniform_refine")
 Plots.plot!(ndofs, h1s_u, marker=:xcross, linewidth=2, xaxis=:log10, yaxis=:log10, label=L"p"*"-uniform")
 
 # function pg_h_adaptive_p_adaptive(r::AbstractVector, p::Int, MA)

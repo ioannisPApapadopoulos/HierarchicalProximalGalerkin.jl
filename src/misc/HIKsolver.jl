@@ -36,8 +36,8 @@ function HIKSolver2D(r::AbstractVector{T}, f::Function, φ::Function) where T
     Δ = weaklaplacian(Dp)
     A1 = sparse(Symmetric(-parent(Δ)[Block(1),Block(1)]))
     M1 = sparse(Symmetric((Dp' * Dp)[Block(1),Block(1)]))
-    A = Symmetric(kron(A1,M1) + kron(M1,A1))
-    M = Symmetric(kron(M1, M1))
+    A = sparse(Symmetric(kron(A1,M1) + kron(M1,A1)))
+    M = sparse(Symmetric(kron(M1, M1)))
 
     HIKSolver{T}(A, r, Nh, M, Dp, plan_D, fv, φv, 2)
 end

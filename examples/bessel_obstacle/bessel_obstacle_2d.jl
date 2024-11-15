@@ -7,6 +7,7 @@ using SpecialFunctions
 """
 This example requires the package ```SpecialFunctions.jl```
 """
+
 f(x,y) = 100.0
 φ(x,y) = (besselj(0,20x)+1)*(besselj(0,20y)+1)
 
@@ -14,14 +15,20 @@ path = "output/bessel_obstacle/"
 if !isdir(path)
     mkpath(path)
 end
+function save_data(ndofs, tics, avg_tics, h1s, subpath)
+    writedlm(path*subpath*"_ndofs.log", ndofs)
+    writedlm(path*subpath*"_avg_tics.log", avg_tics)
+    writedlm(path*subpath*"_tics.log", tics)
+    writedlm(path*subpath*"_h1s.log", h1s)
+end
 
 T = Float64
 
 function bessel_solve(r::AbstractVector{T}, p::Int, f::Function, φ::Function; its_max::Int=6, show_trace::Bool=false) where T
-    PG = ObstacleProblem2D(r, p, f, φ);
+    PG = ObstacleProblem2D(r, p, f, φ, matrixfree=false);
     
     # αs = [1e-2, 1e-1, 1e0, 1e1, 1e2, 1e3, 1e3, 1e3]
-    αs = 2.0.^(-7:6) # 2.0.^(-7:10)
+    αs = [Vector(2.0.^(-7:0.5:-3)); 2^(-3)] # 2.0.^(-7:10)
 
     # Md = sparse(grammatrix(PG.Dp)[Block.(oneto(p+1)), Block.(oneto(p+1))])
     # Md = kron(Md, Md)
@@ -38,7 +45,7 @@ ndofs_p_fem = Int64[]
 us = Vector{T}[]
 PGs_p_fem = []
 r = range(0,1,11)
-pmax = 12
+pmax = 20
 for p in 1:pmax
     print("Considering p=$p.\n")
 
@@ -50,10 +57,13 @@ for p in 1:pmax
     push!(tics_p_fem, tic)
     push!(newton_its_p_fem, iters[1])
 end
+
 avg_tics_p_fem = tics_p_fem ./ newton_its_p_fem
-writedlm(path*"bessel_avg_tics_p_fem.log", avg_tics_p_fem)
-writedlm(path*"bessel_ndofs_p_fem.log", ndofs_p_fem)
-writedlm(path*"bessel_newton_p_fem.log", newton_its_p_fem)
+
+
+# writedlm(path*"bessel_avg_tics_p_fem.log", avg_tics_p_fem)
+# writedlm(path*"bessel_ndofs_p_fem.log", ndofs_p_fem)
+# writedlm(path*"bessel_newton_p_fem.log", newton_its_p_fem)
 
 u_ref = reshape(us[end], isqrt(lastindex(us[end])), isqrt(lastindex(us[end])))
 A = PGs_p_fem[end].A
@@ -68,8 +78,8 @@ for iters = 1:pmax-1
     push!(l2s_p_fem, sqrt(d' * (M * d)))
     push!(h1s_p_fem, sqrt(d' * (A * d) + l2s_p_fem[end]^2))
 end
-writedlm(path*"bessel_h1s_p_fem.log", h1s_p_fem)
-
+# writedlm(path*"bessel_h1s_p_fem.log", h1s_p_fem)
+save_data(ndofs_p_fem, tics_p_fem, avg_tics_p_fem, h1s_p_fem, "p_uniform")
 ### h-refinement, fixed p
 
 for p in [1,2]
@@ -91,9 +101,9 @@ for p in [1,2]
         push!(ndofs_h_fem, size(PG.A, 1))
     end
     avg_tics_h_fem = tics_h_fem ./ newton_its_h_fem
-    writedlm(path*"bessel_avg_tics_h_fem_p_$(p+1).log", avg_tics_h_fem)
-    writedlm(path*"bessel_ndofs_h_fem_p_$(p+1).log", ndofs_h_fem)
-    writedlm(path*"bessel_newton_h_fem_p_$(p+1).log", newton_its_h_fem)
+    # writedlm(path*"bessel_avg_tics_h_fem_p_$(p+1).log", avg_tics_h_fem)
+    # writedlm(path*"bessel_ndofs_h_fem_p_$(p+1).log", ndofs_h_fem)
+    # writedlm(path*"bessel_newton_h_fem_p_$(p+1).log", newton_its_h_fem)
 
     u_ref = reshape(us[end], isqrt(lastindex(us[end])), isqrt(lastindex(us[end])))
     A = PGs_h_fem[end].A
@@ -109,9 +119,49 @@ for p in [1,2]
         d = (u_ref - plan_D * ud.(x,reshape(y,1,1,size(y)...)))[:]
         push!(l2s_h_fem, sqrt(d' * (M * d)))
         push!(h1s_h_fem, sqrt(d' * (A * d) + l2s_h_fem[end]^2))
-        writedlm(path*"bessel_h1s_h_fem_p_$(p+1).log", h1s_h_fem)
+        # writedlm(path*"bessel_h1s_h_fem_p_$(p+1).log", h1s_h_fem)
     end
+    save_data(ndofs_h_fem, tics_h_fem, avg_tics_h_fem, h1s_h_fem, "h_uniform_p_$(p+1)")
 end
+
+### h-uniform, p-uniform
+
+us = Vector{T}[]
+PGs,tics = [], T[]
+newton_its = Int32[]
+ndofs = Int64[]
+Nmax = 4
+for (N, p) in zip([1,1,2,2,3,3,4,4], [1,2,2,3,3,4,4,5])
+    print("p=$p, mesh level: $N.\n")
+
+    r = range(0,1,10*2^(N-1)+1)
+    PG, z, tic, iters = bessel_solve(r, p, f, φ, show_trace=false)
+
+    push!(us, z[1])
+    push!(tics, tic)
+    push!(newton_its, iters[1])
+    push!(PGs, PG);
+    push!(ndofs, size(PG.A, 1))
+end
+avg_tics = tics ./ newton_its
+u_ref = reshape(us[end], isqrt(lastindex(us[end])), isqrt(lastindex(us[end])))
+A = PGs[end].A
+KR = Block.(oneto(PGs[end].p+1))
+M1 = sparse(Symmetric((PGs[end].Dp' * PGs[end].Dp)[KR,KR]))
+M = Symmetric(kron(M1,M1))
+xy, plan_D = plan_grid_transform(PGs[end].Dp, Block(PGs[end].p+1,PGs[end].p+1));
+x,y=first(xy),last(xy);
+l2s, h1s = T[], T[]
+for iters = 1:lastindex(ndofs)-1
+    print("Computing error, iter=$iters.\n")
+    ud(x,y) = evaluate2D(us[iters], x, y, PGs[iters].p+1, PGs[iters].Dp)
+    d = (u_ref - plan_D * ud.(x,reshape(y,1,1,size(y)...)))[:]
+    push!(l2s, sqrt(d' * (M * d)))
+    push!(h1s, sqrt(d' * (A * d) + l2s[end]^2))
+    # writedlm(path*"bessel_h1s_h_fem_p_$(p+1).log", h1s_h_fem)
+end
+save_data(ndofs, tics, avg_tics, h1s, "hp_uniform")
+
 
 # Plot solution
 xx = range(0,1,201)

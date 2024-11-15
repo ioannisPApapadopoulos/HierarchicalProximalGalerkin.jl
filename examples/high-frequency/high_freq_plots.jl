@@ -36,19 +36,26 @@ labels = ["(PDAS) "*L"h"*"-uniform, "*L"p=1",
 
 p = Plots.plot(yaxis=:log10, xaxis=:log10,
     # xlim=[0,700],
-    yticks=[1e-4,1e-3,1e-2,1e-1,1e0,1e1,1e2], ylim=[1e-4,1e2], 
-    xticks=[1e0,1e1,1e2,1e3,1e4,1e5],
-    xlabel="Degrees of freedom", ylabel=L"\Vert u - u_{hp} \Vert_{H^1(\Omega)}",
+    yticks=[1e-4,1e-3,1e-2,1e-1,1e0,1e1,1e2], ylim=[1e-4,1e2],
+    xlim=[7e0, 1e5], 
+    xticks=[1e0,1e1,1e2,1e3,1e4,1e5,1e6],
+    xlabel="Number of dofs for "*L"u_{hp}", ylabel=L"\Vert u - u_{hp} \Vert_{H^1(\Omega)}",
     ylabelfontsize=15,xlabelfontsize=15, xtickfontsize=10, ytickfontsize=10, 
     legendfontsize=8)
-
 for (i, label) in zip(1:length(ndofs), labels)
     p = Plots.plot!(ndofs[i], h1s[i], marker=markers[i], linewidth=2, label=label, grid=true)
-    # [annotate!(ndofs[i][j], h1s[i][j]-0.4*h1s[i][j], Plots.text( "$(round.(avg_tics[i][j], digits=3))", 9, theme_palette(:auto)[i])) for j in 2:2:length(ndofs[i])]
 end
+idx = [[13], [24], [8], [6], [40], [6,9], []]
+i=1; [annotate!(ndofs[i][j]+5*ndofs[i][j]/12, h1s[i][j]+0.3*h1s[i][j], Plots.text( "$(round.(avg_tics[i][j]*1e3, digits=2))", 8, theme_palette(:auto)[i])) for j in idx[i]]
+i=2; [annotate!(ndofs[i][j], h1s[i][j]-0.4*h1s[i][j], Plots.text( "$(round.(avg_tics[i][j]*1e3, digits=2))", 8, theme_palette(:auto)[i])) for j in idx[i]]
+i=3; [annotate!(ndofs[i][j]+5*ndofs[i][j]/12, h1s[i][j], Plots.text( "$(round.(avg_tics[i][j]*1e3, digits=2))", 8, theme_palette(:auto)[i])) for j in idx[i]]
+i=4; [annotate!(ndofs[i][j], h1s[i][j]-0.5*h1s[i][j], Plots.text( "$(round.(avg_tics[i][j]*1e3, digits=2))", 8, theme_palette(:auto)[i])) for j in idx[i]]
+i=5; [annotate!(ndofs[i][j], h1s[i][j]-0.3*h1s[i][j], Plots.text( "$(round.(avg_tics[i][j]*1e3, digits=2))", 8, theme_palette(:auto)[i])) for j in idx[i]]
+i=6; [annotate!(ndofs[i][j]-ndofs[i][j]/3, h1s[i][j], Plots.text( "$(round.(avg_tics[i][j]*1e3, digits=2))", 8, theme_palette(:auto)[i])) for j in idx[i]]
 display(p)
-pw=10;i=7;j=3;
-Plots.plot!(ndofs[i][j:end], h1s[i][j] * (ndofs[i][j] ./ ndofs[i][j:end]).^(pw),linestyle=:dot, marker=:dot,linewidth=2)
+
+# pw=10;i=7;j=3;
+# Plots.plot!(ndofs[i][j:end], h1s[i][j] * (ndofs[i][j] ./ ndofs[i][j:end]).^(pw),linestyle=:dot, marker=:dot,linewidth=2)
 Plots.savefig("osc-data-convergence.pdf")
 
 #### Comparison of a posteriori estimates

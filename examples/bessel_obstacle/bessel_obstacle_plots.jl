@@ -3,15 +3,48 @@ using Plots, LaTeXStrings
 
 path = "output/bessel_obstacle/"
 
-ndofs_p_fem, ndofs_h_fem_p_2, ndofs_h_fem_p_3, ndofs_hik = readdlm(path*"bessel_ndofs_p_fem.log"), 
-    readdlm(path*"bessel_ndofs_h_fem_p_2.log"), readdlm(path*"bessel_ndofs_h_fem_p_3.log"), readdlm(path*"bessel_ndofs_hik.log")
+markers = [:circle, :dtriangle, :rect, :star5, :diamond, :hexagon, :cross,:utriangle,  :xcross, 
+    :dtriangle, :rtriangle, :ltriangle, :pentagon, :heptagon, :octagon, :star4, :star6, 
+    :star7, :star8, :vline, :hline, :+, :x]
 
-h1s_p_fem, h1s_h_fem_p_2, h1s_h_fem_p_3, h1s_hik = readdlm(path*"bessel_h1s_p_fem.log"), 
-    readdlm(path*"bessel_h1s_h_fem_p_2.log"), readdlm(path*"bessel_h1s_h_fem_p_3.log"), readdlm(path*"bessel_h1s_hik.log")
+ndofs, h1s, avg_tics = [], [], []
+strs = path .* ["hik_uniform",
+                "p_uniform",
+                "h_uniform_p_2",
+                "h_uniform_p_3",
+                "hp_uniform"
+]
 
-avg_tics_p_fem, avg_tics_h_fem_p_2, avg_tics_h_fem_p_3, avg_tics_hik = readdlm(path*"bessel_avg_tics_p_fem.log"), 
-    readdlm(path*"bessel_avg_tics_h_fem_p_2.log"), readdlm(path*"bessel_avg_tics_h_fem_p_3.log"), readdlm(path*"bessel_avg_tics_hik.log")
+for str in strs[1:end]
+    push!(h1s, readdlm(str*"_h1s.log"))
+    push!(ndofs, Int.(readdlm(str*"_ndofs.log")))
+    push!(avg_tics, readdlm(str*"_avg_tics.log"))
+end
 
+labels = [
+        "(PDAS) "*L"h"*"-uniform, "*L"p=1",
+        # "(PDAS) "*L"h"*"-adaptive, "*L"p=1",
+        #  L"h"*"-adaptive, "*L"p=4",
+        #  L"h"*"-adaptive, "*L"p"*"-uniform",
+        L"p"*"-uniform",
+        L"h"*"-uniform, "*L"p=2",
+        L"h"*"-uniform, "*L"p=3",
+        L"hp"*"-uniform"
+
+]
+
+p = Plots.plot(yaxis=:log10, xaxis=:log10,
+    # xlim=[0,700],
+    # yticks=[1e-4,1e-3,1e-2,1e-1,1e0,1e1,1e2], ylim=[1e-4,1e2],
+    # xlim=[7e0, 1e5], 
+    # xticks=[1e0,1e1,1e2,1e3,1e4,1e5,1e6],
+    xlabel="Number of dofs for "*L"u_{hp}", ylabel=L"\Vert u - u_{hp} \Vert_{H^1(\Omega)}",
+    ylabelfontsize=15,xlabelfontsize=15, xtickfontsize=10, ytickfontsize=10, 
+    legendfontsize=8)
+for (i, label) in zip(1:length(ndofs), labels)
+    p = Plots.plot!(ndofs[i][1:end-1], h1s[i], marker=markers[i], linewidth=2, label=label, grid=true)
+end
+display(p)
 
 
 ns = [10;20;40]

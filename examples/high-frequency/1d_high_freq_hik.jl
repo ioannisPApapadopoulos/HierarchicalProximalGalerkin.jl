@@ -21,7 +21,7 @@ function high_freq_hik_solve(r::AbstractVector{T}, refinement_strategy::Function
         push!(HIKs, HIK)
         push!(ndofs, lastindex(HIK.A,1))
 
-        u0 = zeros(lastindex(HIK.A,1))
+        u0 = 0.8*ones(lastindex(HIK.A,1))
 
         tic = @elapsed u, λ, its = HierarchicalProximalGalerkin.solve(HIK, u0, show_trace=false, tol=1e-7);
 
@@ -33,7 +33,6 @@ function high_freq_hik_solve(r::AbstractVector{T}, refinement_strategy::Function
         end
 
     end
-    avg_tics = tics ./ newton_its
 
     l2s_u, h1s_u = T[], T[]
     for iters = 1:nlevels
@@ -48,18 +47,18 @@ function high_freq_hik_solve(r::AbstractVector{T}, refinement_strategy::Function
         push!(l2s_u, l2d)
         push!(h1s_u, h1_norm_u_fast(d, Ad, l2s_u[end]))
     end
-    return rs, ndofs, avg_tics, h1s_u
+    return rs, ndofs, tics, newton_its, h1s_u
 end
 
 function hik_h_uniform_refine(r::AbstractVector, MA)
     uniform_refine(r)
 end
-rs, ndofs, avg_tics, h1s_u = high_freq_hik_solve(r,hik_h_uniform_refine,12)
-save_data(ndofs, avg_tics, h1s_u, "hik")
+rs, ndofs, tics, its, h1s_u = high_freq_hik_solve(r,hik_h_uniform_refine,13)
+save_data(ndofs, tics, tics ./ its, h1s_u, "hik")
 
 function hik_h_adaptive_refine(r::AbstractVector, MA)
     ϵs = error_estimates(MA)
     h_refine(MA,ϵs,δ=0.5)
 end
-rs, ndofs, avg_tics, h1s_u = high_freq_hik_solve(r,hik_h_adaptive_refine,15) # 12
-save_data(ndofs, avg_tics, h1s_u, "hik_adaptive")
+rs, ndofs, tics, its, h1s_u = high_freq_hik_solve(r,hik_h_adaptive_refine,24) # 12
+save_data(ndofs, tics, tics ./ its, h1s_u, "hik_adaptive")
