@@ -31,14 +31,14 @@ function HIKSolver2D(r::AbstractRange{T}, f::Function, φ::Function) where T
     N = length(r)-1
     h = step(r)
     si = inv(h)
-    t1 = fill(-2si, N-2)
-    t2 = fill(si, N-3)
+    t1 = fill(2si, N-1)
+    t2 = fill(-si, N-2)
 
     Dp = DirichletPolynomial(r)
     xy, plan_D = plan_grid_transform(Dp, Block(1,1))
     x,y = first(xy), last(xy)
-    fv = vec(plan_D * f.(x,reshape(y,1,1,size(y)...)))
-    φv = vec(plan_D * φ.(x,reshape(y,1,1,size(y)...)))
+    fv = Vector(vec(plan_D * f.(x,reshape(y,1,1,size(y)...))))
+    φv = Vector(vec(plan_D * φ.(x,reshape(y,1,1,size(y)...))))
 
     # Δ = weaklaplacian(Dp)
     # A1 = sparse(Symmetric(-parent(Δ)[Block.(oneto(1)),Block.(oneto(1))]))
@@ -54,8 +54,8 @@ end
 
 function project!(x::AbstractVector{T}, lb::AbstractVector{T}, ub::AbstractVector{T}) where T
     b = x;
-    b[x .< lb] = lb[x .< lb]
-    b[x .> ub] = ub[x .> ub]
+    b[x .< lb] .= lb[x .< lb]
+    b[x .> ub] .= ub[x .> ub]
     return b
 end
 
@@ -91,16 +91,17 @@ function solve(HIK::HIKSolver{T}, u0::AbstractVector{T}=T[]; tol::T=1e-10,max_it
     active = vcat(active_lb, active_ub)
 
     dual = zeros(T, n)
-    dual[active_lb] = r[active_lb]
-    dual[active_ub] = -r[active_ub]
+    dual[active_lb] .= r[active_lb]
+    dual[active_ub] .= -r[active_ub]
     tmp_index = copy(index)
     tmp_index[active] .= 0
     inactive  = findall(x->x!=0, tmp_index)
     p_inactive = inactive[:]
-    chol_A = MatrixFactorizations.cholesky(J[inactive,inactive])
 
     norm_residual_Ω = norm(reduced_residual(r, u, lb, ub))
     show_trace && print("HIK: Iteration 0, residual norm = $norm_residual_Ω\n")
+
+    chol_A = MatrixFactorizations.cholesky(J[inactive,inactive])
 
     while (norm_residual_Ω) > tol && (iter < max_iter)
         
@@ -118,13 +119,13 @@ function solve(HIK::HIKSolver{T}, u0::AbstractVector{T}=T[]; tol::T=1e-10,max_it
             chol_A = MatrixFactorizations.cholesky(J[inactive,inactive])
         end
 
-        update[inactive] = ldiv!(chol_A, -cr)
-        u += damping*update
+        update[inactive] .= ldiv!(chol_A, -cr)
+        u .+= damping*update
     
         # which way should the sign be?
         dual[inactive] .= zero(T);
-        dual[active_lb] = r[active_lb]
-        dual[active_ub] = -r[active_ub]
+        dual[active_lb] .= r[active_lb]
+        dual[active_ub] .= -r[active_ub]
         
         active_lb = findall((dual .- u .+ lb).>0)
         active_ub = findall((dual .-ub .+u) .>0)
