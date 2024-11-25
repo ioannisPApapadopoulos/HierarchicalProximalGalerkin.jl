@@ -200,6 +200,7 @@ function error_estimates(MA::MeshAdaptivity{T}; pg::Bool=false) where T
             Res = sqrt(MA.α^2 * hT^2/pT^2 * dv' * Mv  * dv + ev' * Mv * ev + osc)
         else
             ov = oc[K:n:end]
+
             Res = sqrt(hT^2/pT^2 * dv' * Mv  * dv + ov' * Mv * ov + abs(λv' * Mv * (φv-uv)) + osc)
         end
         push!(ϵs, Res)

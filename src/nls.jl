@@ -20,10 +20,10 @@ function pg_hierarchical_solve(PG::Union{<:ObstacleProblem2D{T},BCsObstacleProbl
     for α in αs 
         n_nls += 1
         show_trace && print("Considering α=$α.\n")
-        # TOL = α == αs[end] ? 1e-8 : min(1e-5, 1e-1 * 1/α)
-        # TOL = 1e-3*α # as used for theromoforming
+
+        # TOL = 1e-3*α # as used for thermoforming
+        # gmres_baseline_tol = gmres_baseline_tol/α # as used for thermoforming
         TOL = tolerance
-        # TOL = min(1e-5, 1e-1 * 1/α)
         ls_α = 1.0
 
         res_u, res_ψ = matrixfree_residual(PG, u, ψ, w, α)

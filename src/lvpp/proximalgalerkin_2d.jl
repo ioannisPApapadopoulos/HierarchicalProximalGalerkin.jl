@@ -110,15 +110,23 @@ end
 
 function preconditioner_E(r::AbstractVector{T}, p::Integer, Nh::Integer) where T
     
-    s = r[2:end]-r[1:end-1]
-    cs = 2 ./ s
-
+    
     Pl = Legendre{T}()
     Ap = sparse(view(diff(Pl)' * diff(Pl), 1:p+2,1:p+2))
     AL = Ap[1:p,1:p] + Ap[3:p+2,3:p+2] - Ap[1:p,3:p+2] - Ap[3:p+2,1:p]
     Mp = sparse(view(Pl'*Pl, 1:p+2,1:p+2))
     ML = Mp[1:p,1:p] + Mp[3:p+2,3:p+2] - Mp[1:p,3:p+2]- Mp[3:p+2,1:p]
     ML3 = Mp[1:p,1:p] - Mp[1:p,3:p+2] 
+
+
+    s = r[2:end]-r[1:end-1]
+
+    if sum(s .≈ s[1]) == length(s)
+        cs = 2 / s[1]
+        Nh = 1
+    else
+        cs = 2 ./ s
+    end
 
     ALb = ExtendableSparseMatrix(p*Nh,p*Nh)
     MLb = ExtendableSparseMatrix(p*Nh,p*Nh)
@@ -132,14 +140,26 @@ function preconditioner_E(r::AbstractVector{T}, p::Integer, Nh::Integer) where T
     end
     AL2 = kron(ALb, MLb) + kron(MLb, ALb)
     ML4 = kron(ML3b, ML3b)
-
     chol_AL2 = MatrixFactorizations.cholesky(AL2)
-    E = ExtendableSparseMatrix(p^2*Nh^2, p^2*Nh^2)
-    for j in axes(E,2)
-        E[:,j] .= sparse(ML4 * ldiv!(chol_AL2, ML4[:,j]))
+    E = sparse(ML4 * (chol_AL2 \ ML4))
+    if sum(s .≈ s[1]) == length(s)
+        return interlace_blocks(kron(E,Diagonal(ones(length(r)-1))), p, length(r)-1)
+    else
+        return E
     end
-    return E
-    # sparse(ML4 * ldiv!(chol_AL2, Matrix(ML4)'))
+end
+
+function interlace_blocks(A::SparseMatrixCSC{<:T, <:Int}, k::Int, nb::Int) where T
+    m = size(A, 1) ÷ k
+    n = k * nb * m
+    C = ExtendableSparseMatrix(n,n)
+    for i in 1:k, j in 1:k
+        block_A = A[(i-1)*m+1:i*m, (j-1)*m+1:j*m]
+        for l in 1:nb
+            C[(nb*i-l)*m+1:(nb*i-(l-1))*m, (nb*j-l)*m+1:(nb*j-(l-1))*m] .= block_A
+        end
+    end
+    return C
 end
 
 function cache_quadrature2D(Nh::Int, p::Int, nb::Int, G::PiecewiseOrthogonalPolynomials.ApplyPlan{T}) where T
@@ -173,7 +193,6 @@ function cache_quadrature2D(Nh::Int, p::Int, nb::Int, G::PiecewiseOrthogonalPoly
         colM[:,j] = repeat(col_idx, p)                                                                                                                                                        
     end
     K2 = colM[:]
-
     G \ X, K1, K2
 end
 
@@ -202,7 +221,7 @@ function sparsity_pattern_D(nb::Integer, p::Integer, Nh::Integer, T::Type)
             D[k,col_idx[k]] = one(T)
         end
     end
-    return D
+    return sparse(D)
 end
 
 function ObstacleProblem2D(r::AbstractVector{T}, p::Integer, f::Function, φ::Function;matrixfree::Bool=true) where T

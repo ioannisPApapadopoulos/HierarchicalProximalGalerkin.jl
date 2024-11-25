@@ -63,8 +63,8 @@ x,y=first(xy),last(xy)
 l2s, h1s = T[], T[]
 for iters = 1:9
     print("\nComputing error, mesh level: $iters.\n")
-    ud(x,y) = evaluate2D(us[iters], x, y, 1, HIKs[iters].Dp)
-    d = u_ref - Vector(vec(plan_D * ud.(x,reshape(y,1,1,size(y)...))))
+    vals = evaluate2D(us[iters], x, y, 1, HIKs[iters].Dp)
+    d = u_ref - (plan_D * vals)[:]
     push!(l2s, sqrt(d' * (M * d)))
     push!(h1s, sqrt(d' * (A * d) + l2s[end]^2))
     writedlm(path*"hik_uniform_h1s.log", h1s)

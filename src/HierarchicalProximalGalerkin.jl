@@ -31,13 +31,14 @@ export ContinuousPolynomial, DirichletPolynomial, weaklaplacian, grammatrix, Blo
         Thermoforming2D,
         normH1, normL2, evaluate2D,
         BCsObstacleProblem2D,
-        GradientBounds2D
+        GradientBounds2D, GradientBounds
 
 include("lvpp/proximalgalerkin.jl")
 include("lvpp/proximalgalerkin_2d.jl")
 include("lvpp/proximalgalerkin_2d_bcs.jl")
 include("lvpp/proximalgalerkin_adaptive.jl")
 include("lvpp/gradientbounds.jl")
+include("lvpp/gradientbounds_2d.jl")
 include("matrixfree.jl")
 include("assembly.jl")
 include("ls.jl")

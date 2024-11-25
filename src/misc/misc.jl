@@ -42,8 +42,16 @@ function evaluate2D(u::AbstractVector{T}, x::AbstractVector{T}, y::AbstractVecto
     P[y,Block.(1:p)] * reshape(u,isqrt(lastindex(u)), isqrt(lastindex(u)))' * P[x,Block.(1:p)]'   
 end
 
-function evaluate2D(u::AbstractVector{T}, x::T, y::T, p::Integer, P::PiecewiseOrthogonalPolynomials.AbstractPiecewisePolynomial) where T
-    P[y,Block.(1:p)]' * reshape(u,isqrt(lastindex(u)), isqrt(lastindex(u))) * P[x,Block.(1:p)]
+# function evaluate2D(u::AbstractVector{T}, x::T, y::T, p::Integer, P::PiecewiseOrthogonalPolynomials.AbstractPiecewisePolynomial) where T
+#     P[y,Block.(1:p)]' * reshape(u,isqrt(lastindex(u)), isqrt(lastindex(u))) * P[x,Block.(1:p)]
+# end
+
+function evaluate2D(u::AbstractVector{T}, x::AbstractMatrix{T}, y::AbstractMatrix{T}, p::Int, P::PiecewiseOrthogonalPolynomials.AbstractPiecewisePolynomial) where T
+    yb = P[y, Block.(1:p)]
+    xb = P[x, Block.(1:p)]
+    U = reshape(u, isqrt(lastindex(u)), :)
+    c = reshape(xb, :, size(xb,3)) * U * permutedims(reshape(yb, :, size(yb,3)), [2,1])
+    reshape(c, size(xb,1), size(xb,2), size(yb,1), size(yb,2))
 end
 
 function evaluate_u(PG::AdaptiveObstacleProblem{T}, x::AbstractVector{T}, u::AbstractVector{T}) where T

@@ -15,11 +15,12 @@ path = "output/bessel_obstacle/"
 if !isdir(path)
     mkpath(path)
 end
-function save_data(ndofs, tics, avg_tics, h1s, subpath)
+function save_data(ndofs, tics, avg_tics, h1s, its, subpath)
     writedlm(path*subpath*"_ndofs.log", ndofs)
     writedlm(path*subpath*"_avg_tics.log", avg_tics)
     writedlm(path*subpath*"_tics.log", tics)
     writedlm(path*subpath*"_h1s.log", h1s)
+    writedlm(path*subpath*"_its.log", its)
 end
 
 T = Float64
@@ -45,7 +46,7 @@ ndofs_p_fem = Int64[]
 us = Vector{T}[]
 PGs_p_fem = []
 r = range(0,1,11)
-pmax = 20
+pmax = 25
 for p in 1:pmax
     print("Considering p=$p.\n")
 
@@ -79,15 +80,16 @@ for iters = 1:pmax-1
     push!(h1s_p_fem, sqrt(d' * (A * d) + l2s_p_fem[end]^2))
 end
 # writedlm(path*"bessel_h1s_p_fem.log", h1s_p_fem)
-save_data(ndofs_p_fem, tics_p_fem, avg_tics_p_fem, h1s_p_fem, "p_uniform")
+save_data(ndofs_p_fem, tics_p_fem, avg_tics_p_fem, h1s_p_fem, newton_its_p_fem, "p_uniform")
 ### h-refinement, fixed p
 
-for p in [1,2]
+# for p in [1,2]
+p = 2
     us = Vector{T}[]
     PGs_h_fem,tics_h_fem = [], T[]
     newton_its_h_fem = Int32[]
     ndofs_h_fem = Int64[]
-    Nmax = p==1 ? 5 : 4
+    Nmax = p==1 ? 7 : 6
     for N in 1:Nmax
         r = range(0,1,10*2^(N-1)+1)
         print("p=$p, mesh level: $N.\n")
@@ -115,23 +117,24 @@ for p in [1,2]
     l2s_h_fem, h1s_h_fem = T[], T[]
     for iters = 1:Nmax-1
         print("Computing error, p=$p, mesh level: $iters.\n")
-        ud(x,y) = evaluate2D(us[iters], x, y, PGs_h_fem[iters].p+1, PGs_h_fem[iters].Dp)
-        d = (u_ref - plan_D * ud.(x,reshape(y,1,1,size(y)...)))[:]
+        vals = evaluate2D(us[iters], x, y, PGs_h_fem[iters].p+1, PGs_h_fem[iters].Dp)
+        d = (u_ref - plan_D * vals)[:]
         push!(l2s_h_fem, sqrt(d' * (M * d)))
         push!(h1s_h_fem, sqrt(d' * (A * d) + l2s_h_fem[end]^2))
         # writedlm(path*"bessel_h1s_h_fem_p_$(p+1).log", h1s_h_fem)
     end
-    save_data(ndofs_h_fem, tics_h_fem, avg_tics_h_fem, h1s_h_fem, "h_uniform_p_$(p+1)")
+    save_data(ndofs_h_fem, tics_h_fem, avg_tics_h_fem, h1s_h_fem, newton_its_h_fem, "h_uniform_p_$(p+1)")
 end
 
-### h-uniform, p-uniform
+### hp-uniform
 
 us = Vector{T}[]
 PGs,tics = [], T[]
 newton_its = Int32[]
 ndofs = Int64[]
-Nmax = 4
-for (N, p) in zip([1,1,2,2,3,3,4,4], [1,2,2,3,3,4,4,5])
+# for (N, p) in zip([1,1,2,2,3,3,4,4], [1,2,2,3,3,4,4,5])
+for (N, p) in zip([1,2,3,4,5], [1,2,3,4,5])
+    # for (N, p) in zip([1], [1])
     print("p=$p, mesh level: $N.\n")
 
     r = range(0,1,10*2^(N-1)+1)
@@ -154,13 +157,13 @@ x,y=first(xy),last(xy);
 l2s, h1s = T[], T[]
 for iters = 1:lastindex(ndofs)-1
     print("Computing error, iter=$iters.\n")
-    ud(x,y) = evaluate2D(us[iters], x, y, PGs[iters].p+1, PGs[iters].Dp)
-    d = (u_ref - plan_D * ud.(x,reshape(y,1,1,size(y)...)))[:]
+    vals = evaluate2D(us[iters], x, y, PGs[iters].p+1, PGs[iters].Dp)
+    d = (u_ref - plan_D * vals)[:]
     push!(l2s, sqrt(d' * (M * d)))
     push!(h1s, sqrt(d' * (A * d) + l2s[end]^2))
     # writedlm(path*"bessel_h1s_h_fem_p_$(p+1).log", h1s_h_fem)
 end
-save_data(ndofs, tics, avg_tics, h1s, "hp_uniform")
+save_data(ndofs, tics, avg_tics, h1s, newton_its, "hp_uniform")
 
 
 # Plot solution

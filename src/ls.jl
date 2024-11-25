@@ -61,21 +61,21 @@ function prec_matrixfree_solve(PG::Union{<:ObstacleProblem2D{T},<:BCsObstaclePro
     end
 
     Db = PG.D
+    Bt = sparse(B')
 
-
-    Sf(x) = Vector(  Db*x + β*M*x + B' * ldiv!(chol_A, Vector(B*x)) / α  )
+    Sf(x) = Db*x + β.*(M*x) + (Bt * ldiv!(chol_A, B*x)) ./ α
     # Sf(x) = Vector(  apply_D(PG, Vector(x), Vector(ψ)) + β*M*x + B' * ldiv!(chol_A, Vector(B*x)) / α  )
     S = LinearMap(Sf, n; ismutating=false)
 
-    Sp = Db + β*M + E/α
+    Sp = Db + β.*M + E./α
     lu_Sp = MatrixFactorizations.lu(Sp)
 
     if show_trace
-        y, info = IterativeSolvers.gmres(S, b, Pr=lu_Sp, log=true, restart=n, reltol=gmres_baseline_tol/α)
+        y, info = IterativeSolvers.gmres(S, b, Pr=lu_Sp, log=true, restart=150, reltol=gmres_baseline_tol, orth_meth=ClassicalGramSchmidt())
         print("GMRES Its: $(info.iters).\n")
         iters = info.iters
     else
-        y = IterativeSolvers.gmres(S, b, Pr=lu_Sp, restart=n, reltol=gmres_baseline_tol/α)
+        y = IterativeSolvers.gmres(S, b, Pr=lu_Sp, restart=150, reltol=gmres_baseline_tol, orth_meth=ClassicalGramSchmidt())
         iters = 0
     end
     
