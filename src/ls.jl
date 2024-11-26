@@ -47,7 +47,7 @@ function prec_matrixfree_solve(PG::Union{<:ObstacleProblem2D{T},<:BCsObstaclePro
                     u::AbstractVector{T}, v::AbstractVector{T}, ψ::AbstractVector{T}, α::Number;
                     β::T=1e-9,
                     gmres_baseline_tol::T=1e-4,
-                    show_trace::Bool=true) where T
+                    show_trace::Bool=true, restart::Int=200) where T
     B = PG.B
     chol_A = PG.chol_A
     E, M = PG.E, PG.M
@@ -71,11 +71,12 @@ function prec_matrixfree_solve(PG::Union{<:ObstacleProblem2D{T},<:BCsObstaclePro
     lu_Sp = MatrixFactorizations.lu(Sp)
 
     if show_trace
-        y, info = IterativeSolvers.gmres(S, b, Pr=lu_Sp, log=true, restart=150, reltol=gmres_baseline_tol, orth_meth=ClassicalGramSchmidt())
+        y, info = IterativeSolvers.gmres(S, b, Pr=lu_Sp, log=true, restart=restart, maxiter=restart, reltol=gmres_baseline_tol, orth_meth=ClassicalGramSchmidt())
         print("GMRES Its: $(info.iters).\n")
         iters = info.iters
+        iters ≥ restart && print("WARNING! GMRES iterations: $iters > restart tolerance: $restart.\n")
     else
-        y = IterativeSolvers.gmres(S, b, Pr=lu_Sp, restart=150, reltol=gmres_baseline_tol, orth_meth=ClassicalGramSchmidt())
+        y = IterativeSolvers.gmres(S, b, Pr=lu_Sp, restart=restart, maxiter=restart, reltol=gmres_baseline_tol, orth_meth=ClassicalGramSchmidt())
         iters = 0
     end
     
