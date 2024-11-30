@@ -6,7 +6,7 @@ function pg_hierarchical_solve(PG::Union{<:ObstacleProblem2D{T},BCsObstacleProbl
         initial_guess=(), its_max::Integer=10, pf_its_max::Integer=2,
         backtracking::Bool=true, matrixfree::Bool=false, 
         return_w::Bool=false, show_trace::Bool=true, 
-        β::T=0.0, gmres_baseline_tol::T=1e-4, restart::Int=200, 
+        β::T=0.0, gmres_baseline_tol::T=1e-4, gmres_abstol::T=0.0, restart::Int=200, 
         c_1::T=1e-4, Md=[],tolerance::T=1e-10) where T
 
     # nu, npsi = ( (PG.p+1) * PG.Nh - 1)^2, (PG.p * PG.Nh)^2
@@ -42,7 +42,7 @@ function pg_hierarchical_solve(PG::Union{<:ObstacleProblem2D{T},BCsObstacleProbl
                 break
             end
             if matrixfree
-                ((du,dψ), iters)= prec_matrixfree_solve(PG,-res_u,-res_ψ, ψ, α, β=β, gmres_baseline_tol=gmres_baseline_tol, restart=restart, show_trace=show_trace)
+                ((du,dψ), iters)= prec_matrixfree_solve(PG,-res_u,-res_ψ, ψ, α, β=β, gmres_baseline_tol=gmres_baseline_tol, gmres_abstol=gmres_abstol, restart=restart, show_trace=show_trace)
                 # ((du,dψ), tic)= mon_prec_solve(PG,-res_u,-res_ψ, ψ, α,w, bandw=bandw, verbosity=1,show_trace=show_trace)    
                 # ((du,dψ), iters, tic)= prec_solve2(PG,-res_u,-res_ψ, ψ, α, bandw=bandw, verbosity=1,show_trace=show_trace)    
                 

@@ -55,6 +55,7 @@ function GradientBounds2D(r::AbstractVector{T}, p::Integer, f::AbstractVector{T}
     M = sparse(kron(Mp,Mp))
 
     E = preconditioner_E_gradient_bounds(r, p, Nh)
+    E = blockdiag(E,E)
 
     D = sparsity_pattern_D(size(B,2)÷2, p, Nh, T)
     D = blockdiag(D, D)

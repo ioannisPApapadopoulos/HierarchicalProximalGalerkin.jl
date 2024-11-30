@@ -1,8 +1,19 @@
-using HierarchicalProximalGalerkin
+using HierarchicalProximalGalerkin, LinearAlgebra
 # using Plots, LaTeXStrings
 using DelimitedFiles
 
-# clrs = theme_palette(:auto)
+path = "output/thermoforming/"
+if !isdir(path)
+    mkpath(path)
+end
+function save_data(alg_its, its1, its2, h1s, subpath)
+    stepI = [its1[1] its1[2] its1[1]/alg_its its1[2]/its1[1]]
+    stepII = [its2[1] its2[2] its2[1]/alg_its its2[2]/its1[1]]
+    writedlm(path*subpath*"_fixed_point.log", alg_its)
+    writedlm(path*subpath*"_step_I.log", stepI)
+    writedlm(path*subpath*"_step_II.log", stepII)
+    writedlm(path*subpath*"_h1s.log",  h1s)
+end
 
 # Model parameters
 k = 1.0
@@ -36,57 +47,63 @@ end
 
 r = range(0,1,5)
 C = ContinuousPolynomial{1}(r)
-its1 = []
-its2 = []
-alg_its = []
-tics = []
-# for p in 1:6:19
+its1, its2, alg_its, tics = [], [], [], []
+h1s = Float64[]
+
 for p in 11:11
     n = length(r)-1
     TF = Thermoforming2D(Vector(r), p, p, k, Φ₀, ϕ, g, dg);
 
     global T = zeros((n*(p+1)+1)^2)
     global u = zeros((n*(p+1)-1)^2)
-    h1s = Float64[]
 
     ob_its = (0,0)
     Phi_its = (0,0)
     iter2 = 0
 
-    for iter in 1:30
+    Dp = DirichletPolynomial(r)
+    Δ = weaklaplacian(Dp)
+    KR = Block.(oneto(p+1))
+    A1 = sparse(Symmetric(-parent(Δ)[KR,KR]))
+    M1 = sparse(Symmetric((Dp' * Dp)[KR,KR]))
+    A = sparse(kron(A1,M1) + kron(M1,A1))
+    M = sparse(kron(M1,M1))
+
+
+    for iter in 1:10
         print("Fixed point iteration: $iter.\n")
         ob(x,y) = obstacle(x,y,p,T,Φ₀,ϕ,C)
         PG = ObstacleProblem2D(r, p, f, ob)#, b=p_u);
-        
-        # αs = iter ≥ 5 ? [1e-1, 1e0, 1e1, 1e2, 1e2]# : [1e-1]
-        αs = [1e-2, 1e-1, 1e0, 1e1, 1e2, 1e3, 1e3, 1e3]
-        αs = 2.0.^(-7:6)
 
-        u_, ψ, iters = pg_hierarchical_solve(PG, αs, gmres_baseline_tol=1e-8, 
-                matrixfree=true,backtracking=true,show_trace=true, its_max=10, pf_its_max=3, β=1e-8)
+        αs = 2.0.^(-6:2:0)
+
+        u_, ψ, iters = pg_hierarchical_solve(PG, αs, gmres_baseline_tol=1e-7, gmres_abstol=1e-7, 
+                c_1=-1e4,
+                matrixfree=true,backtracking=true,show_trace=true,
+                restart=min(size(PG.A, 1), 300), its_max=4, pf_its_max=4, β=0.0, tolerance=1e-6)
+
         ob_its = ob_its .+ iters
-        # push!(ob_its, iters)
 
         # print("\n\n")
         global T, its = HierarchicalProximalGalerkin.solve(TF, u_, T0=T, show_trace=false,matrixfree=true)
         Phi_its = Phi_its .+ its
-        # push!(Phi_its, its)
-        h1 = normH1(PG, u-u_); push!(h1s, h1)
-        print("‖u_n+1 - u_n‖_H^1 = $h1.\n")
+
+        d = u-u_
+        l2 = sqrt(d' * M * d)
+        h1 = sqrt(d' * A * d + l2^2)
+        push!(h1s, h1)
+        print("‖u_n+1 - u_n‖_L^2 = $l2, ‖u_n+1 - u_n‖_H^1 = $h1.\n")
         iter2 += 1
 
         global u = copy(u_)
-        if h1 < 1e-5
+        if h1 < 1e-2
             print("Convergence reached.\n")
             break
         end
     end
-    push!(its1, ob_its); writedlm("output/p-$p/u_its.log")
-    push!(its2, Phi_its); writedlm("output/p-$p/phi_its.log")
-    push!(alg_its, iter2); writedlm("output/p-$p/alg_its.log")
-    # push!(tics, tic)
+    push!(its1, ob_its); push!(its2, Phi_its); push!(alg_its, iter2);
+    save_data(alg_its, its1, its2, h1s, "p_$(p+1)")
 end
-
 
 # Dp = DirichletPolynomial(r)
 # xx = range(0,1,500)
@@ -118,10 +135,12 @@ end
 # Plots.savefig("thermoforming-mould.pdf")
 
 # y = 0.5
+# p = 15
 # xx = range(0,1,500)
-# ux = evaluate2D(u, xx, [y], 20, Dp)'
+# ux = evaluate2D(u, xx, [y], p+1, Dp)'
+# ob(x,y) = obstacle(x,y,p,T,Φ₀,ϕ,C)
 # ox = ob.(xx, y)
-# Tx = evaluate2D(T, xx, [y], 20, C)'
+# Tx = evaluate2D(T, xx, [y], p+1, C)'
 # origx = Φ₀.(xx,y)
 
 # Plots.plot(xx, [ux ox Tx origx],
@@ -133,4 +152,4 @@ end
 #     xlabelfontsize=20,
 #     # ylim=[0,1.3]
 # )
-# Plots.savefig("thermoforming-slice.pdf")
+# # Plots.savefig("thermoforming-slice.pdf")

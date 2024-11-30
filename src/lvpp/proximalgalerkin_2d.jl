@@ -141,7 +141,7 @@ function preconditioner_E(r::AbstractVector{T}, p::Integer, Nh::Integer) where T
     AL2 = kron(ALb, MLb) + kron(MLb, ALb)
     ML4 = kron(ML3b, ML3b)
     chol_AL2 = MatrixFactorizations.cholesky(AL2)
-    E = sparse(ML4 * (chol_AL2 \ ML4))
+    E = sparse(ML4 * (chol_AL2 \ ML4'))
     if sum(s .≈ s[1]) == length(s)
         return interlace_blocks(kron(E,Diagonal(ones(length(r)-1))), p, length(r)-1)
     else
@@ -159,7 +159,7 @@ function interlace_blocks(A::SparseMatrixCSC{<:T, <:Int}, k::Int, nb::Int) where
             C[(nb*i-l)*m+1:(nb*i-(l-1))*m, (nb*j-l)*m+1:(nb*j-(l-1))*m] .= block_A
         end
     end
-    return C
+    return sparse(C)
 end
 
 function cache_quadrature2D(Nh::Int, p::Int, nb::Int, G::PiecewiseOrthogonalPolynomials.ApplyPlan{T}) where T

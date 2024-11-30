@@ -1,9 +1,6 @@
 using MKL
 using HierarchicalProximalGalerkin
-using SparseArrays, LinearAlgebra
-using Plots, LaTeXStrings
-using BlockArrays
-
+using DelimitedFiles
 
 f(x,y) = 20.0
 function φc(x,y,c)
@@ -32,9 +29,9 @@ function gradient_bound_solve(r::AbstractVector{T}, p::Int, c::T) where T
 end
 
 r = range(0,1,9)
-u = gradient_bound_solve(r, 15, 0.5)
+u = gradient_bound_solve(r, 25, 0.5)
 writedlm(path*"u_ref_p_uniform.log", u)
 
 r = range(0,1,2^7+1)
-u = gradient_bound_solve(r, 7, 0.5)
+u = gradient_bound_solve(r, 6, 0.5)
 writedlm(path*"u_ref_h_uniform.log", u)

@@ -26,7 +26,7 @@ function assembly_solve(PG:: GradientBounds2D{T},
     u::AbstractVector{T}, v::AbstractVector{T}, ψ::AbstractVector{T}, α::Number;β::Number=1e-10) where T
     A, B = PG.A, PG.B
     E = PG.E
-    E = blockdiag(E,E)
+    # E = blockdiag(E,E)
 
     if PG.ψ ≠ ψ
         PG.D .= assemble_D(PG,ψ)
@@ -46,14 +46,16 @@ end
 function prec_matrixfree_solve(PG::Union{<:ObstacleProblem2D{T},<:BCsObstacleProblem2D{T},<:ObstacleProblem{T}, <:AdaptiveObstacleProblem{T}},
                     u::AbstractVector{T}, v::AbstractVector{T}, ψ::AbstractVector{T}, α::Number;
                     β::T=1e-9,
-                    gmres_baseline_tol::T=1e-4,
+                    gmres_baseline_tol::T=1e-4, gmres_abstol::T=0.0,
                     show_trace::Bool=true, restart::Int=200) where T
     B = PG.B
     chol_A = PG.chol_A
     E, M = PG.E, PG.M
     n = size(B,2)
 
-    b = Vector(v + B' * ldiv!(chol_A, copy(u)) / α)
+    Bt = sparse(B')
+
+    b = Vector(v + Bt * ldiv!(chol_A, copy(u)) / α)
 
     if PG.ψ ≠ ψ
         PG.D .= assemble_D(PG,ψ)
@@ -61,46 +63,44 @@ function prec_matrixfree_solve(PG::Union{<:ObstacleProblem2D{T},<:BCsObstaclePro
     end
 
     Db = PG.D
-    Bt = sparse(B')
+
 
     Sf(x) = Db*x + β.*(M*x) + (Bt * ldiv!(chol_A, B*x)) ./ α
-    # Sf(x) = Vector(  apply_D(PG, Vector(x), Vector(ψ)) + β*M*x + B' * ldiv!(chol_A, Vector(B*x)) / α  )
     S = LinearMap(Sf, n; ismutating=false)
 
-    Sp = Db + β.*M + E./α
+    Sp = Db + β.*M +  (1e-8 * Diagonal(ones(size(E,1))) + E) ./α
     lu_Sp = MatrixFactorizations.lu(Sp)
 
     if show_trace
-        y, info = IterativeSolvers.gmres(S, b, Pr=lu_Sp, log=true, restart=restart, maxiter=restart, reltol=gmres_baseline_tol, orth_meth=ClassicalGramSchmidt())
+        y, info = IterativeSolvers.gmres(S, b, Pr=lu_Sp, log=true, restart=restart, maxiter=restart, reltol=gmres_baseline_tol, abstol=gmres_abstol, orth_meth=ClassicalGramSchmidt())
         print("GMRES Its: $(info.iters).\n")
         iters = info.iters
         iters ≥ restart && print("WARNING! GMRES iterations: $iters > restart tolerance: $restart.\n")
     else
-        y = IterativeSolvers.gmres(S, b, Pr=lu_Sp, restart=restart, maxiter=restart, reltol=gmres_baseline_tol, orth_meth=ClassicalGramSchmidt())
+        y = IterativeSolvers.gmres(S, b, Pr=lu_Sp, restart=restart, maxiter=restart, reltol=gmres_baseline_tol, abstol=gmres_abstol, orth_meth=ClassicalGramSchmidt())
         iters = 0
     end
-    
-    # tic3 = @elapsed y = IterativeSolvers.gmres(S, b, Pr=lu_Sp, restart=n)#, log=true, restart=n)#, reltol=1e-3/α)
 
     x = ldiv!(chol_A, Vector(u - B*y)) ./ α
-    # ((x, y), iters, [tic1;tic2;tic3])
     (x, y), iters
 end
 
 function prec_matrixfree_solve(PG::GradientBounds2D{T},
             u::AbstractVector{T}, v::AbstractVector{T}, ψ::AbstractVector{T}, α::Number;
             β::T=1e-9,
-            gmres_baseline_tol::T=1e-4,
-            show_trace::Bool=true) where T
+            gmres_baseline_tol::T=1e-4, gmres_abstol::T=0.0,
+            show_trace::Bool=true, restart::Int=200) where T
 
     B = PG.B
     chol_A = PG.chol_A
     E, M = PG.E, PG.M
     n = size(B,2)
-    M = blockdiag(M,M)
-    E = blockdiag(E,E)
+    # M = blockdiag(M,M)
+    # E = blockdiag(E,E)
 
-    b = Vector(v + B' * ldiv!(chol_A, copy(u)) / α)
+    Bt = sparse(B')
+
+    b = Vector(v + Bt * ldiv!(chol_A, copy(u)) / α)
 
     if PG.ψ ≠ ψ
         PG.D .= assemble_D(PG,ψ)
@@ -109,21 +109,19 @@ function prec_matrixfree_solve(PG::GradientBounds2D{T},
 
     Db = PG.D
 
-    # Sf(x) = Vector(  Db*x + β*M*x + B' * ldiv!(chol_A, Vector(B*x)) / α  )
-    Sf(x) = Vector(  Db*x + β*E*x + B' * ldiv!(chol_A, Vector(B*x)) / α  )
-    # Sf(x) = Vector(  apply_D(PG, Vector(x), Vector(ψ)) + β*M*x + B' * ldiv!(chol_A, Vector(B*x)) / α  )
+    Sf(x) = Db*x + β.*(E*x) + (Bt * ldiv!(chol_A, B*x) ./ α ) 
     S = LinearMap(Sf, n; ismutating=false)
 
-    # Sp = Db + β*M + E/α
-    Sp = Db + β*E
+    Sp = Db + β.*E
     lu_Sp = MatrixFactorizations.lu(Sp)
 
     if show_trace
-        y, info = IterativeSolvers.gmres(S, b, Pr=lu_Sp, log=true, restart=n, reltol=gmres_baseline_tol/α)
+        y, info = IterativeSolvers.gmres(S, b, Pr=lu_Sp, log=true, restart=restart, maxiter=restart, reltol=gmres_baseline_tol, abstol=gmres_abstol, orth_meth=ClassicalGramSchmidt())
         print("GMRES Its: $(info.iters).\n")
         iters = info.iters
+        iters ≥ restart && print("WARNING! GMRES iterations: $iters > restart tolerance: $restart.\n")
     else
-        y = IterativeSolvers.gmres(S, b, Pr=lu_Sp, restart=n, reltol=gmres_baseline_tol/α)
+        y = IterativeSolvers.gmres(S, b, Pr=lu_Sp, restart=restart, maxiter=restart, reltol=gmres_baseline_tol, abstol=gmres_abstol, orth_meth=ClassicalGramSchmidt())
         iters = 0
     end
     x = ldiv!(chol_A, Vector(u - B*y)) ./ α

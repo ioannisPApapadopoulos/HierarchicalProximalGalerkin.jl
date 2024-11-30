@@ -54,8 +54,20 @@ i=5; [annotate!(ndofs[i][j], h1s[i][j]-0.3*h1s[i][j], Plots.text( "$(round.(avg_
 i=6; [annotate!(ndofs[i][j]-ndofs[i][j]/3, h1s[i][j], Plots.text( "$(round.(avg_tics[i][j]*1e3, digits=2))", 8, theme_palette(:auto)[i])) for j in idx[i]]
 display(p)
 
-# pw=10;i=7;j=3;
-# Plots.plot!(ndofs[i][j:end], h1s[i][j] * (ndofs[i][j] ./ ndofs[i][j:end]).^(pw),linestyle=:dot, marker=:dot,linewidth=2)
+function plot_convergence_triangle!(x1,x2,y1,sl,color;dim=1,labelpos=1/8)
+    dx = x2/x1
+    y2 = y1/(dx^(1/dim))^sl
+
+    xt = [x1, x1, x2, x1]
+    yt = [y1, y2, y2, y1]
+    plot!(xt, yt, label="", lw=2, color=color, fillalpha=0.3, seriestype=:shape)
+    annotate!(x1-labelpos*x1, (y2/y1)^(1/2)*y1, Plots.text( "$sl", 9, :black))
+end
+
+plot_convergence_triangle!(1e4,2e4,2e-2,1,:blue)
+plot_convergence_triangle!(7e2,1.5e3,2e-1,1.5,:red,labelpos=0.2)
+plot_convergence_triangle!(1e2,1.5e2,5e-2,5,:green)
+plot_convergence_triangle!(9e2,1.1e3,2e-3,10,:magenta,labelpos=0.2)
 Plots.savefig("osc-data-convergence.pdf")
 
 #### Comparison of a posteriori estimates
