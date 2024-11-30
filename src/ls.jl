@@ -68,7 +68,7 @@ function prec_matrixfree_solve(PG::Union{<:ObstacleProblem2D{T},<:BCsObstaclePro
     Sf(x) = Db*x + β.*(M*x) + (Bt * ldiv!(chol_A, B*x)) ./ α
     S = LinearMap(Sf, n; ismutating=false)
 
-    Sp = Db + β.*M +  (1e-8 * Diagonal(ones(size(E,1))) + E) ./α
+    Sp = Db + β.*M + E./α
     lu_Sp = MatrixFactorizations.lu(Sp)
 
     if show_trace
