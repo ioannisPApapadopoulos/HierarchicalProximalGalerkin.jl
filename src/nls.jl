@@ -22,9 +22,6 @@ function pg_hierarchical_solve(PG::Union{<:ObstacleProblem2D{T},BCsObstacleProbl
         n_nls += 1
         show_trace && print("Considering α=$α.\n")
 
-        # TOL = 1e-3*α # as used for thermoforming
-        # gmres_baseline_tol = gmres_baseline_tol/α # as used for thermoforming
-        TOL = tolerance
         ls_α = 1.0
 
         res_u, res_ψ = matrixfree_residual(PG, u, ψ, w, α)
@@ -33,8 +30,8 @@ function pg_hierarchical_solve(PG::Union{<:ObstacleProblem2D{T},BCsObstacleProbl
 
         its_max = α == αs[1] ? its_max : pf_its_max
         for iter in 1:its_max
-            # res_u, res_ψ = residual(PG, u, ψ, w, α)
-            if normres < TOL
+
+            if normres < tolerance
                 break
             end
             if ls_α < 10000*eps()

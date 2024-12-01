@@ -1,5 +1,5 @@
 using HierarchicalProximalGalerkin, LinearAlgebra
-# using Plots, LaTeXStrings
+using Plots, LaTeXStrings
 using DelimitedFiles
 
 path = "output/thermoforming/"
@@ -8,7 +8,7 @@ if !isdir(path)
 end
 function save_data(alg_its, its1, its2, h1s, subpath)
     stepI = [its1[1] its1[2] its1[1]/alg_its its1[2]/its1[1]]
-    stepII = [its2[1] its2[2] its2[1]/alg_its its2[2]/its1[1]]
+    stepII = [its2[1] its2[2] its2[1]/alg_its its2[2]/its2[1]]
     writedlm(path*subpath*"_fixed_point.log", alg_its)
     writedlm(path*subpath*"_step_I.log", stepI)
     writedlm(path*subpath*"_step_II.log", stepII)
@@ -39,7 +39,6 @@ function dg(s)
     end
 end
 
-
 function obstacle(x,y,p,T,Φ₀,ϕ,C)
     rT = reshape(T,isqrt(lastindex(T)), isqrt(lastindex(T)))
     Φ₀(x,y) + ϕ(x,y)*(C[y,Block.(1:p+1)]' * rT * C[x,Block.(1:p+1)])
@@ -47,10 +46,9 @@ end
 
 r = range(0,1,5)
 C = ContinuousPolynomial{1}(r)
-its1, its2, alg_its, tics = [], [], [], []
 h1s = Float64[]
 
-for p in 11:11
+for p in 21:21
     n = length(r)-1
     TF = Thermoforming2D(Vector(r), p, p, k, Φ₀, ϕ, g, dg);
 
@@ -70,21 +68,23 @@ for p in 11:11
     M = sparse(kron(M1,M1))
 
 
-    for iter in 1:10
+    for iter in 1:20
         print("Fixed point iteration: $iter.\n")
         ob(x,y) = obstacle(x,y,p,T,Φ₀,ϕ,C)
-        PG = ObstacleProblem2D(r, p, f, ob)#, b=p_u);
+
+        E_ϵ = p > 49 ? 1e-7 : 0.0
+        PG = ObstacleProblem2D(r, p, f, ob, E_ϵ=E_ϵ)
 
         αs = 2.0.^(-6:2:0)
 
         u_, ψ, iters = pg_hierarchical_solve(PG, αs, gmres_baseline_tol=1e-7, gmres_abstol=1e-7, 
                 c_1=-1e4,
                 matrixfree=true,backtracking=true,show_trace=true,
-                restart=min(size(PG.A, 1), 300), its_max=4, pf_its_max=4, β=0.0, tolerance=1e-6)
+                restart=min(size(PG.A, 1), 300), its_max=4, pf_its_max=4, β=1e-6, tolerance=1e-6)
 
         ob_its = ob_its .+ iters
 
-        # print("\n\n")
+
         global T, its = HierarchicalProximalGalerkin.solve(TF, u_, T0=T, show_trace=false,matrixfree=true)
         Phi_its = Phi_its .+ its
 
@@ -101,55 +101,51 @@ for p in 11:11
             break
         end
     end
-    push!(its1, ob_its); push!(its2, Phi_its); push!(alg_its, iter2);
-    save_data(alg_its, its1, its2, h1s, "p_$(p+1)")
+    save_data(iter2, ob_its, Phi_its, h1s, "p_$(p+1)")
 end
 
-# Dp = DirichletPolynomial(r)
-# xx = range(0,1,500)
-# Ux = evaluate2D(u, xx, xx, 16, Dp)
-# # norm(U[findall(U .> 1.0)] .- 1.0, Inf)
-# Plots.gr_cbar_offsets[] = (-0.05,-0.01)
-# Plots.gr_cbar_width[] = 0.03
-# surface(xx,xx,Ux,
-#     color=:diverging, #:vik,
-#     xlabel=L"x", ylabel=L"y", zlabel=L"u(x,y)",
-#     # camera=(30,-30),
-#     title="Membrane  "*L"u",
-#     margin=(-6, :mm),
-#     # zlim=[0,1.3],
-# )
-# Plots.savefig("thermoforming-membrane.pdf")
 
-# ob(x,y) = obstacle(x,y,15,T,Φ₀,ϕ,C)
-# surface(xx,xx,ob.(xx',xx),
-#     color=:diverging, #:vik,
-#     xlabel=L"x", ylabel=L"y", zlabel=L"(\Phi_0 + \xi T)(x,y)",
-#     # camera=(30,-30),
-#     title="Mould  "*L"\Phi_0 + \xi T",
-#     margin=(-6, :mm),
-#     # right_margin=3Plots.mm
-#     # extra_kwargs=Dict(:subplot=>Dict("3d_colorbar_axis" => [0.1, 0.1, 0.1, 0.1]) )
-#     # zlim=[0,1.3],
-# )
-# Plots.savefig("thermoforming-mould.pdf")
+## Plotting solution
 
-# y = 0.5
-# p = 15
-# xx = range(0,1,500)
-# ux = evaluate2D(u, xx, [y], p+1, Dp)'
-# ob(x,y) = obstacle(x,y,p,T,Φ₀,ϕ,C)
-# ox = ob.(xx, y)
-# Tx = evaluate2D(T, xx, [y], p+1, C)'
-# origx = Φ₀.(xx,y)
+if false
+    Dp = DirichletPolynomial(r)
+    p = 41
+    xx = range(0,1,500)
+    Ux = evaluate2D(u, xx, xx, p+1, Dp)
+    Plots.gr_cbar_offsets[] = (-0.05,-0.01)
+    Plots.gr_cbar_width[] = 0.03
+    surface(xx,xx,Ux,
+        color=:diverging,
+        xlabel=L"x", ylabel=L"y", zlabel=L"u(x,y)",
+        title="Membrane  "*L"u",
+        margin=(-6, :mm),
+    )
+    Plots.savefig("thermoforming-membrane.pdf")
 
-# Plots.plot(xx, [ux ox Tx origx],
-#     linewidth=2,
-#     label=["Membrane" "Mould" "Temperature" "Original Mould"],
-#     linestyle=[:solid :dash],
-#     xlabel=L"x",
-#     title=L"Slice at $y=1/2$",
-#     xlabelfontsize=20,
-#     # ylim=[0,1.3]
-# )
-# # Plots.savefig("thermoforming-slice.pdf")
+    ob(x,y) = obstacle(x,y,p,T,Φ₀,ϕ,C)
+    surface(xx,xx,ob.(xx',xx),
+        color=:diverging,
+        xlabel=L"x", ylabel=L"y", zlabel=L"(\Phi_0 + \xi T)(x,y)",
+        title="Mould  "*L"\Phi_0 + \xi T",
+        margin=(-6, :mm),
+    )
+    Plots.savefig("thermoforming-mould.pdf")
+
+    y = 0.5
+    xx = range(0,1,500)
+    ux = evaluate2D(u, xx, [y], p+1, Dp)'
+    ob(x,y) = obstacle(x,y,p,T,Φ₀,ϕ,C)
+    ox = ob.(xx, y)
+    Tx = evaluate2D(T, xx, [y], p+1, C)'
+    origx = Φ₀.(xx,y)
+
+    Plots.plot(xx, [ux ox Tx origx],
+        linewidth=2,
+        label=["Membrane" "Mould" "Temperature" "Original Mould"],
+        linestyle=[:solid :dash],
+        xlabel=L"x",
+        title=L"Slice at $y=1/2$",
+        xlabelfontsize=20,
+    )
+    Plots.savefig("thermoforming-slice.pdf")
+end
