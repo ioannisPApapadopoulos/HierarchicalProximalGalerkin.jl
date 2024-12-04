@@ -4,9 +4,9 @@ This repository implement the hierarchical proximal Galerkin solver (hpG) as des
 
 "Hierarchical proximal Galerkin: a fast $hp$-FEM solver for variational problems with pointwise inequality constraints", Ioannis. P. A. Papadopoulos (2024).
 
-It combines the proximal Galerkin solver of Keith and Surowiec () with the hierarchical p-FEM basis to achieve very-high-order discretizations of:
+It combines the proximal Galerkin solver of Keith and Surowiec ([paper](https://doi.org/10.1007/s10208-024-09681-8)) with the hierarchical p-FEM basis to achieve very-high-order discretizations of:
     (i)   the obstacle problem,
-    (ii)  the generalized elastic-plastic torsion problem,
+    (ii)  the generalized elastic-plastic torsion problem, and
     (iii) the thermoforming problem: an obstacle-type quasi-variational inequality.
 
 
@@ -41,8 +41,9 @@ It also utilizes [SparseArrays.jl](https://github.com/JuliaSparse/SparseArrays.j
 
 If you use this package please reference:
 
-    1. Ioannis P. A. Papadopoulos. "Hierarchical proximal Galerkin: a fast $hp$-FEM solver for variational problems with pointwise inequality constraints." (2024).
-    2. Brendan Keith and Thomas M. Surowiec. "Proximal Galerkin: A structure-preserving finite element method for pointwise bound constraints." Foundations of Computational Mathematics (2024): 1-97. [DOI: 10.1007/s10208-024-09681-8](https://doi.org/10.1007/s10208-024-09681-8) 
+[1] Ioannis P. A. Papadopoulos. "Hierarchical proximal Galerkin: a fast $hp$-FEM solver for variational problems with pointwise inequality constraints." (2024).
+
+[2] Brendan Keith and Thomas M. Surowiec. "Proximal Galerkin: A structure-preserving finite element method for pointwise bound constraints." Foundations of Computational Mathematics (2024): 1-97. [DOI: 10.1007/s10208-024-09681-8](https://doi.org/10.1007/s10208-024-09681-8) 
 
 
 ## Contact
