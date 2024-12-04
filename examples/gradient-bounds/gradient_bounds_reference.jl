@@ -2,6 +2,12 @@ using MKL
 using HierarchicalProximalGalerkin
 using DelimitedFiles
 
+"""
+Section 7.3: Script for computing reference solutions of the
+generalized elastic-plastic torsion problem via the hpG solver.
+
+"""
+
 f(x,y) = 20.0
 function φc(x,y,c)
     if abs(x-0.5) ≥ 0.25|| abs(y-0.5) ≥ 0.25

@@ -2,7 +2,15 @@ using MKL
 using HierarchicalProximalGalerkin
 using Plots, LaTeXStrings, DelimitedFiles
 
-include("high_freq_setup.jl")
+"""
+Section 7.1: Solve a 1D obstacle problem with an oscillatory right-hand side
+
+Here the solve is via the primal-dual active set strategy (HIK or PDAS). We consider
+    (i)   h-uniform, p=1
+    (ii)  h-adaptive, p=1
+"""
+
+include("1d_high_freq_setup.jl")
 
 T = Float64
 r = range(0,1,11)
@@ -60,5 +68,5 @@ function hik_h_adaptive_refine(r::AbstractVector, MA)
     ϵs = error_estimates(MA)
     h_refine(MA,ϵs,δ=0.5)
 end
-rs, ndofs, tics, its, h1s_u = high_freq_hik_solve(r,hik_h_adaptive_refine,24) # 12
+rs, ndofs, tics, its, h1s_u = high_freq_hik_solve(r,hik_h_adaptive_refine,24)
 save_data(ndofs, tics, tics ./ its, h1s_u, "hik_adaptive")
