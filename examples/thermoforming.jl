@@ -2,6 +2,21 @@ using HierarchicalProximalGalerkin, LinearAlgebra
 using Plots, LaTeXStrings
 using DelimitedFiles
 
+"""
+Section 7.4
+
+Solve a 2D thermoforming quasi-variational inequality with a fixed
+point approach. We solve the obstalce problem with the hpG solver and use a 
+preconditioner for the nonlinear screened Poisson problem so that we do not
+need to assemble the Jacobin.
+
+This script requires >16GB of RAM.
+
+We fix a 4x4 mesh and consider p=6,12,22,32,42,52,62.
+
+
+"""
+
 path = "output/thermoforming/"
 if !isdir(path)
     mkpath(path)
@@ -15,7 +30,9 @@ function save_data(alg_its, its1, its2, h1s, subpath)
     writedlm(path*subpath*"_h1s.log",  h1s)
 end
 
-# Model parameters
+"""
+Model parameters
+"""
 k = 1.0
 Φ₀(x,y) = 1.1 - 2*max(abs(x -1/2),  abs(y-1/2)) +  0.1*cos(8*π*x)*cos(8*π*y)
 ϕ(x,y) = sin(π*x)*sin(π*y)
@@ -48,7 +65,10 @@ r = range(0,1,5)
 C = ContinuousPolynomial{1}(r)
 h1s = Float64[]
 
-for p in 21:21
+"""
+Loop the solve
+"""
+for p in [5, 11, 21, 31, 41, 51, 61]
     n = length(r)-1
     TF = Thermoforming2D(Vector(r), p, p, k, Φ₀, ϕ, g, dg);
 
@@ -72,7 +92,9 @@ for p in 21:21
         print("Fixed point iteration: $iter.\n")
         ob(x,y) = obstacle(x,y,p,T,Φ₀,ϕ,C)
 
-        E_ϵ = p > 49 ? 1e-7 : 0.0
+        # When p>49, the preconditioner needs a diagonal perturbation of E_ϵ 
+        # otherwise the preconditioner stiffness matrix is not invertible
+        E_ϵ = p > 49 ? 1e-7 : 0.0 
         PG = ObstacleProblem2D(r, p, f, ob, E_ϵ=E_ϵ)
 
         αs = 2.0.^(-6:2:0)
@@ -105,7 +127,10 @@ for p in 21:21
 end
 
 
-## Plotting solution
+"""
+Plot solution
+
+"""
 
 if false
     Dp = DirichletPolynomial(r)

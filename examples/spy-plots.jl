@@ -2,7 +2,16 @@ using HierarchicalProximalGalerkin, SparseArrays, MatrixFactorizations
 using CuthillMcKee, IterativeSolvers
 using Plots, LaTeXStrings
 
-## 1D
+"""
+Section 4
+
+Script for plotting spy and GMRES convergence plots.
+
+"""
+
+"""
+1D spy plots:
+"""
 f(x) = 1.0
 φ(x) = 1.0
 f(x,y) = 1.0
@@ -36,9 +45,9 @@ rD = rcmpermute(sparse(D))
 Plots.spy(rD, markersize=2, size=(400,400), aspect_ratio=:equal)
 Plots.savefig("rD1d.pdf")
 
-### 2D
-
-
+"""
+2D spy plots:
+"""
 r, p = range(0,1,6), 5
 OP = ObstacleProblem2D(r, p, f, φ);
 
@@ -69,20 +78,13 @@ rD = rcmpermute(D)
 
 @time MatrixFactorizations.lu(D);
 @time MatrixFactorizations.lu(rD);
-# rD = zeros(size(D))
-# K = length(r)-1
-# for pc in 1:K
-#     rD[p*(pc-1)+1:p*pc,p*(pc-1)+1:p*pc] = D[pc:K:end, pc:K:end]
-# end
 Plots.spy(rD, markersize=1, size=(400,400), aspect_ratio=:equal)
 Plots.savefig("rD2d.pdf")
 
 
-
-## Schur complement condition number
-
-## 1D
-
+"""
+1D GMRES plots:
+"""
 r = range(0,1,11)
 iters_p, tics_p = Int[], Float64[]
 for p in 1:40
@@ -154,7 +156,9 @@ Plots.plot(ns, tics_h,
 Plots.savefig("h-factorization-time-1d.pdf")
 
 
-## 2D
+"""
+2D GMRES plots:
+"""
 r = range(0,1,5)
 iters_p, tics_p = Int[], Float64[]
 for p in 1:20
@@ -225,7 +229,9 @@ Plots.plot(ns, tics_h,
     xlabelfontsize=20,ylabelfontsize=15,xtickfontsize=15,ytickfontsize=15,legendfontsize=15)
 Plots.savefig("h-factorization-time.pdf")
 
-## Gradient bounds
+"""
+2D GMRES plots of gradient-type constraints
+"""
 
 β = 1e-5
 r = range(0,1,5)
@@ -233,11 +239,8 @@ iters_p, tics_p = Int[], Float64[]
 for p in 1:20
     PG = GradientBounds2D(r,p,f,φ);
     E = PG.E
-
-    # S = blockdiag(PG.M,PG.M) + PG.B' * (PG.A \ Matrix(PG.B))
-    # Ŝ = blockdiag(PG.M,PG.M) + PG.E # 1e-10*PG.M + PG.E# + 1e-5*PG.M
     S = β*E + PG.B' * (PG.A \ Matrix(PG.B))
-    Ŝ = β*E # 1e-10*PG.M + PG.E# + 1e-5*PG.M
+    Ŝ = β*E
     tic = @elapsed lu_E = MatrixFactorizations.lu(Ŝ)
     push!(tics_p, tic)
     b = -ones(size(S,1))
