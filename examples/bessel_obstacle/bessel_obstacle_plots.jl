@@ -1,6 +1,9 @@
 using DelimitedFiles
 using Plots, LaTeXStrings
 
+"""
+Helper script for plotting convergence of bessel obstacle problem
+"""
 
 function plot_convergence_triangle!(x1,x2,y1,sl,color;dim=1,labelpos=1/8)
     dx = x2/x1
@@ -37,9 +40,6 @@ h1s[2] = h1s[2][1:end-1]
 
 labels = [
         "(PDAS) "*L"h"*"-uniform, "*L"p=1",
-        # "(PDAS) "*L"h"*"-adaptive, "*L"p=1",
-        #  L"h"*"-adaptive, "*L"p=4",
-        #  L"h"*"-adaptive, "*L"p"*"-uniform",
         L"p"*"-uniform",
         L"h"*"-uniform, "*L"p=2",
         L"h"*"-uniform, "*L"p=3",
@@ -49,9 +49,6 @@ labels = [
 
 p = Plots.plot(yaxis=:log10, xaxis=:log10,
     xlim=[7e1,2e7], xticks=[1e1,1e2,1e3,1e4,1e5,1e6,1e7],
-    # yticks=[1e-4,1e-3,1e-2,1e-1,1e0,1e1,1e2], ylim=[1e-4,1e2],
-    # xlim=[7e0, 1e5], 
-    # xticks=[1e0,1e1,1e2,1e3,1e4,1e5,1e6],
     xlabel="Number of dofs for "*L"u_{hp}", ylabel=L"\Vert u - u_{hp} \Vert_{H^1(\Omega)}",
     ylabelfontsize=15,xlabelfontsize=15, xtickfontsize=10, ytickfontsize=10, 
     legendfontsize=8)
@@ -69,8 +66,6 @@ i=5;[annotate!(ndofs[i][j]-5*ndofs[i][j]/12, h1s[i][j], Plots.text( "$(round.(av
 display(p)
 
 plot_convergence_triangle!(1e5, 2e5, 7e-2, 1, :blue, dim=2)
-# plot_convergence_triangle!(1e4, 1.5e4, 5e-2, 2, :red, dim=2)
 plot_convergence_triangle!(1.5e5, 3e5, 6e-3, 3/2, :red, dim=2, labelpos=1/4)
-
 
 Plots.savefig("oscillatory_obstacle_convergence.pdf")

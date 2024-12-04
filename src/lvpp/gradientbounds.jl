@@ -1,3 +1,17 @@
+"""
+Struct for implementing 1D gradient bounds solver with
+zero bcs. I.e. find u ∈ K satisfying
+
+    (∇u, ∇(v-u)) ≥ (f,v-u) ∀ v ∈ K
+
+where K = {u ∈ H^1_0(Ω) : |∇u| ≤ φ}.
+
+The LVPP subproblem is:
+    α(∇u, ∇v) + (ψ, ∇v) = α(f, v) + (ψ_, ∇v) ∀ v ∈ H^1_0(Ω)
+    (∇u, q) - (φψ/sqrt(1+|ψ|^2),q) =0        ∀ q ∈ L^∞(Ω)^2
+
+"""
+
 struct GradientBounds{T}
     A::AbstractMatrix{T}
     chol_A

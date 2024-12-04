@@ -1,3 +1,17 @@
+"""
+Struct for implementing p-adaptive 1D obstacle problem solver 
+with zero bcs. I.e. find u ∈ K satisfying
+
+    (∇u, ∇(v-u)) ≥ (f,v-u) ∀ v ∈ K
+
+where K = {u ∈ H^1_0(Ω) : u ≤ φ}.
+
+The LVPP subproblem is:
+    α(∇u, ∇v) + (ψ, v) = α(f, v) + (ψ_, v) ∀ v ∈ H^1_0(Ω)
+    (u, q) + (exp(-ψ),q) =0                ∀ q ∈ L^∞(Ω)
+
+"""
+
 struct AdaptiveObstacleProblem{T}
     A::AbstractMatrix{T}
     chol_A

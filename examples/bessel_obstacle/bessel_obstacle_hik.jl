@@ -3,6 +3,16 @@ using HierarchicalProximalGalerkin
 using SpecialFunctions
 using Plots, DelimitedFiles
 
+"""
+Solve a 2D obstacle problem with a bessel-type oscillatory obstacle.
+
+Here the solve is the primal-dual active set strategy (HIK or PDAS).
+We use a P1 discretization and h-refinement. 
+
+"""
+
+T = Float64
+
 f(x,y) = 100.0
 φ(x,y) = (besselj(0,20x)+1)*(besselj(0,20y)+1)
 
@@ -18,44 +28,35 @@ function save_data(ndofs, tics, avg_tics, h1s, subpath)
     writedlm(path*subpath*"_h1s.log", h1s)
 end
 
-T = Float64
 r = range(0,1,11)
 us, rs = Vector{T}[], AbstractVector{T}[]
-newton_its = Int64[]
-tics = T[]
-ndofs = Int64[]
-HIKs = []
-for iters = 1:9
+newton_its, tics, ndofs, HIKs = Int64[], T[], Int64[], []
+
+# Solve and h-refine
+for iters = 1:10
     print("Mesh level: $iters.\n")
 
     HIK = HIKSolver2D(r, f, φ)
     push!(HIKs, HIK)
     push!(ndofs, lastindex(HIK.A,1))
-    # if iters == 1
-        u0 = zeros(lastindex(HIK.A,1))
-    # else
-    #     xy, plan_D = plan_grid_transform(HIK.Dp, Block(1,1))
-    #     ud(x,y) = evaluate2D(us[iters-1], x, y, 1, HIKs[iters-1].Dp)
-    #     x,y=first(xy),last(xy)
-    #     @time X = ud.(x,reshape(y,1,1,size(y)...))
-    #     u0 = Vector(vec(plan_D * X))
-    #     print("Interpolated.\n")
-    # end
-
+    u0 = zeros(lastindex(HIK.A,1))
 
     tic = @elapsed u, λ, its = HierarchicalProximalGalerkin.solve(HIK, u0, show_trace=false, tol=1e-7);
-    writedlm(path*"bessel_u_$iters.log", u)
+    # writedlm(path*"bessel_u_$iters.log", u)
     push!(us, u); push!(newton_its, its); push!(tics, tic)
     r = range(0,1,2*r.len-1)
     push!(rs, r)
 end
 avg_tics = tics ./ newton_its
 writedlm(path*"hik_uniform_avg_tics.log", avg_tics)
-# writedlm(path*"bessel_ndofs_hik.log", ndofs)
-# writedlm(path*"bessel_avg_tics_hik.log", avg_tics)
 
-# u_ref = us[end]
-u_ref = Vector(vec(readdlm("examples/bessel_obstacle/bessel_u_10.log")))
+try
+    u_ref = Vector(readdlm(path*"bessel_u_10.log")[:])
+catch e
+    u_ref = us[end]
+end
+
+# Measure errors against heavily-refined solution
 HIK = HIKSolver2D(rs[end], f, φ)
 Dp, A, M = HIK.Dp, HIK.A, HIK.M
 xy, plan_D = plan_grid_transform(Dp, Block(1,1))

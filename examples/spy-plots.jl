@@ -230,10 +230,9 @@ Plots.savefig("h-factorization-time.pdf")
 β = 1e-5
 r = range(0,1,5)
 iters_p, tics_p = Int[], Float64[]
-p = 20
 for p in 1:20
     PG = GradientBounds2D(r,p,f,φ);
-    E = blockdiag(PG.E,PG.E)
+    E = PG.E
 
     # S = blockdiag(PG.M,PG.M) + PG.B' * (PG.A \ Matrix(PG.B))
     # Ŝ = blockdiag(PG.M,PG.M) + PG.E # 1e-10*PG.M + PG.E# + 1e-5*PG.M
@@ -242,7 +241,7 @@ for p in 1:20
     tic = @elapsed lu_E = MatrixFactorizations.lu(Ŝ)
     push!(tics_p, tic)
     b = -ones(size(S,1))
-    _, info = IterativeSolvers.gmres(S, b, Pl=lu_E, restart=size(S,1), reltol=1e-6, abstol=1e-14, log=true)
+    _, info = IterativeSolvers.gmres(S, b, Pl=lu_E, restart=min(200,size(S,1)), reltol=1e-6, abstol=1e-14, log=true)
     push!(iters_p, info.iters)
 end
 

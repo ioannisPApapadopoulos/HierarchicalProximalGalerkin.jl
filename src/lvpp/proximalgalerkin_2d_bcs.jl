@@ -1,3 +1,19 @@
+"""
+Struct for implementing 2D obstacle problem solver with
+non-homogeneous Dirichlet bcs. I.e. find u ≤ φ satisfying
+
+    (∇u, ∇(v-u)) ≥ (f,v-u) ∀ v ∈ K
+    u|_∂Ω = g
+
+where K = {u ∈ H^1_0(Ω) : u ≤ φ}. We assume p is the same on
+each cell.
+
+The LVPP subproblem is:
+    α(∇u, ∇v) + (ψ, v) = α(f, v) + (ψ_, v) ∀ v ∈ H^1_0(Ω)
+    (u, q) + (exp(-ψ),q) =0                ∀ q ∈ L^∞(Ω)
+
+"""
+
 struct BCsObstacleProblem2D{T}
     A::AbstractMatrix{T}
     chol_A
