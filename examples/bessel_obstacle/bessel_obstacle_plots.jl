@@ -2,6 +2,8 @@ using DelimitedFiles
 using Plots, LaTeXStrings
 
 """
+Section 7.2
+
 Helper script for plotting convergence of bessel obstacle problem
 """
 

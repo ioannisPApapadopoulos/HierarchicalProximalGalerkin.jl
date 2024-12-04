@@ -4,7 +4,9 @@ using SpecialFunctions
 using Plots, DelimitedFiles
 
 """
-Solve a 2D obstacle problem with a bessel-type oscillatory obstacle.
+This example requires the package ```SpecialFunctions.jl```
+
+Section 7.2: Solve a 2D obstacle problem with a bessel-type oscillatory obstacle.
 
 Here the solve is the primal-dual active set strategy (HIK or PDAS).
 We use a P1 discretization and h-refinement. 

@@ -7,7 +7,7 @@ using SpecialFunctions
 """
 This example requires the package ```SpecialFunctions.jl```
 
-Solve a 2D obstacle problem with a bessel-type oscillatory obstacle.
+Section 7.2: Solve a 2D obstacle problem with a bessel-type oscillatory obstacle.
 
 Here we use the hpG solver with sparse LU factorization. We consider
     (i)   p-uniform refinement
