@@ -82,43 +82,43 @@ function GradientBounds2D(r::AbstractVector{T}, p::Integer, f::AbstractVector{T}
     GradientBounds2D{T}(A, chol_A, p, Nh, B, E, D, M, G, P, Dp, plan_P, plan_dP, plan_tP, f, φ, φx, ψ, Ux, K1, K2)
 end
 
-function preconditioner_E_gradient_bounds(r::AbstractVector{T}, p::Integer, Nh::Integer) where T
+# function preconditioner_E_gradient_bounds(r::AbstractVector{T}, p::Integer, Nh::Integer) where T
     
-    s = r[2:end]-r[1:end-1]
-    cs = 2 ./ s
-    Pl = Legendre{T}()
-    Ap = sparse(view(diff(Pl)' * diff(Pl), 1:p+2,1:p+2))
-    AL = Ap[1:p,1:p] + Ap[3:p+2,3:p+2] - Ap[1:p,3:p+2] - Ap[3:p+2,1:p]
-    Mp = sparse(view(Pl'*Pl, 1:p+2,1:p+2))
-    ML = Mp[1:p,1:p] + Mp[3:p+2,3:p+2] - Mp[1:p,3:p+2]- Mp[3:p+2,1:p]
+#     s = r[2:end]-r[1:end-1]
+#     cs = 2 ./ s
+#     Pl = Legendre{T}()
+#     Ap = sparse(view(diff(Pl)' * diff(Pl), 1:p+2,1:p+2))
+#     AL = Ap[1:p,1:p] + Ap[3:p+2,3:p+2] - Ap[1:p,3:p+2] - Ap[3:p+2,1:p]
+#     Mp = sparse(view(Pl'*Pl, 1:p+2,1:p+2))
+#     ML = Mp[1:p,1:p] + Mp[3:p+2,3:p+2] - Mp[1:p,3:p+2]- Mp[3:p+2,1:p]
 
-    # Bp = sparse(view(diff(Pl)'*Pl, 1:p+3,1:p+3))
-    # BL3 = Bp[1:p,1:p] + Bp[3:p+2,3:p+2] - Bp[3:p+2,1:p] - Bp[1:p,3:p+2]
-    # Bp = sparse(view(Pl'*diff(Pl), 1:p+3,1:p+3))
-    # ML3 = Bp[1:p,1:p] + Bp[3:p+2,3:p+2] - Bp[3:p+2,1:p] - Bp[1:p,3:p+2]
+#     # Bp = sparse(view(diff(Pl)'*Pl, 1:p+3,1:p+3))
+#     # BL3 = Bp[1:p,1:p] + Bp[3:p+2,3:p+2] - Bp[3:p+2,1:p] - Bp[1:p,3:p+2]
+#     # Bp = sparse(view(Pl'*diff(Pl), 1:p+3,1:p+3))
+#     # ML3 = Bp[1:p,1:p] + Bp[3:p+2,3:p+2] - Bp[3:p+2,1:p] - Bp[1:p,3:p+2]
 
-    ALb = ExtendableSparseMatrix(p*Nh,p*Nh)
-    MLb = ExtendableSparseMatrix(p*Nh,p*Nh)
-    # BL3b = ExtendableSparseMatrix(p*Nh,p*Nh)
-    # ML3b = ExtendableSparseMatrix(p*Nh,p*Nh)
-    for i in axes(AL,1), j in axes(AL,2)
-        for k in 0:Nh-1
-            ALb[Nh*i-k,Nh*j-k] = cs[k+1] * AL[i,j]
-            MLb[Nh*i-k,Nh*j-k] = ML[i,j] / cs[k+1]
-            # BL3b[Nh*i-k,Nh*j-k] = BL3[i,j] #/ (cs[k+1])
-            # ML3b[Nh*i-k,Nh*j-k] = ML3[i,j] / cs[k+1]
-        end
-    end
-    AL2 = kron(ALb, MLb) + kron(MLb, ALb) #+ kron(BL3b, BL3b) + kron(ML3b, ML3b)
-    return sparse(AL2)
-#     # ML4 = sparse(kron(BL3b, ML3b) + kron(ML3b, BL3b))
-#     # ML4 = [ML4 ML4]
-#     ML4 = [kron(BL3b, ML3b) kron(ML3b, BL3b)]
-#     # ML4 = ML4[:,(p-1)*(Nh)^2+Nh+1:end]
+#     ALb = ExtendableSparseMatrix(p*Nh,p*Nh)
+#     MLb = ExtendableSparseMatrix(p*Nh,p*Nh)
+#     # BL3b = ExtendableSparseMatrix(p*Nh,p*Nh)
+#     # ML3b = ExtendableSparseMatrix(p*Nh,p*Nh)
+#     for i in axes(AL,1), j in axes(AL,2)
+#         for k in 0:Nh-1
+#             ALb[Nh*i-k,Nh*j-k] = cs[k+1] * AL[i,j]
+#             MLb[Nh*i-k,Nh*j-k] = ML[i,j] / cs[k+1]
+#             # BL3b[Nh*i-k,Nh*j-k] = BL3[i,j] #/ (cs[k+1])
+#             # ML3b[Nh*i-k,Nh*j-k] = ML3[i,j] / cs[k+1]
+#         end
+#     end
+#     AL2 = kron(ALb, MLb) + kron(MLb, ALb) #+ kron(BL3b, BL3b) + kron(ML3b, ML3b)
+#     return sparse(AL2)
+# #     # ML4 = sparse(kron(BL3b, ML3b) + kron(ML3b, BL3b))
+# #     # ML4 = [ML4 ML4]
+# #     ML4 = [kron(BL3b, ML3b) kron(ML3b, BL3b)]
+# #     # ML4 = ML4[:,(p-1)*(Nh)^2+Nh+1:end]
 
-#     chol_AL2 = MatrixFactorizations.cholesky(AL2)
-#     sparse(ML4' * ldiv!(chol_AL2, Matrix(ML4)))
-end
+# #     chol_AL2 = MatrixFactorizations.cholesky(AL2)
+# #     sparse(ML4' * ldiv!(chol_AL2, Matrix(ML4)))
+# end
 
 function preconditioner_E_gradient_bounds(r::AbstractVector{T}, p::Integer, Nh::Integer) where T
     
