@@ -12,7 +12,7 @@ need to assemble the Jacobin.
 
 This script requires >16GB of RAM.
 
-We fix a 4x4 mesh and consider p=6,12,22,32,42,52,62.
+We fix a 4x4 mesh and consider p=6,12,22,32,42,52,62,72,82.
 
 
 """
@@ -68,7 +68,7 @@ h1s = Float64[]
 """
 Loop the solve
 """
-for p in [5, 11, 21, 31, 41, 51, 61]
+for p in [5, 11, 21, 31, 41, 51, 61, 71, 81]
     n = length(r)-1
     TF = Thermoforming2D(Vector(r), p, p, k, Φ₀, ϕ, g, dg);
 
