@@ -2,7 +2,7 @@
 
 This repository implement the hierarchical proximal Galerkin solver (hpG) as described in
 
-"Hierarchical proximal Galerkin: a fast $hp$-FEM solver for variational problems with pointwise inequality constraints", Ioannis. P. A. Papadopoulos (2024).
+"Hierarchical proximal Galerkin: a fast $hp$-FEM solver for variational problems with pointwise inequality constraints", Ioannis. P. A. Papadopoulos (2024), https://arxiv.org/abs/2412.13733.
 
 It combines the proximal Galerkin solver of Keith and Surowiec ([paper](https://doi.org/10.1007/s10208-024-09681-8)) with the hierarchical p-FEM basis to achieve very-high-order discretizations of:
     (i)   the obstacle problem,
@@ -41,7 +41,7 @@ It also utilizes [SparseArrays.jl](https://github.com/JuliaSparse/SparseArrays.j
 
 If you use this package please reference:
 
-[1] Ioannis P. A. Papadopoulos. "Hierarchical proximal Galerkin: a fast $hp$-FEM solver for variational problems with pointwise inequality constraints." (2024).
+[1] Ioannis P. A. Papadopoulos. "Hierarchical proximal Galerkin: a fast $hp$-FEM solver for variational problems with pointwise inequality constraints" (2024), https://arxiv.org/abs/2412.13733.
 
 [2] Brendan Keith and Thomas M. Surowiec. "Proximal Galerkin: A structure-preserving finite element method for pointwise bound constraints." Foundations of Computational Mathematics (2024): 1-97. [DOI: 10.1007/s10208-024-09681-8](https://doi.org/10.1007/s10208-024-09681-8) 
 
